@@ -5,6 +5,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import AdUnit from './AdUnit';
 import { DONATION_LINK } from '../constants';
 import { AD_SLOTS } from '../constants/ads';
+import { settings } from '../siteSettings';
 
 interface CommercialNoticeProps {
   onOpenPrivacy: () => void;
@@ -74,7 +75,7 @@ const CommercialNotice: React.FC<CommercialNoticeProps> = ({ onOpenPrivacy, onOp
           <span className="text-gray-700">|</span>
           <button onClick={onOpenTerms} className="hover:text-blue-400 transition-colors cursor-pointer">Terms of Service</button>
           <span className="text-gray-700">|</span>
-          <span>Version 1.4.0 (Global)</span>
+          <span>Version {settings.general.version}</span>
         </div>
 
         <div className="text-[40px] font-black text-gray-800 opacity-20 select-none">

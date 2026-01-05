@@ -1,5 +1,6 @@
 
 import { LotteryGameType, GameConfig } from './types';
+import { settings } from './siteSettings';
 
 export const GAME_CONFIGS: Record<LotteryGameType, GameConfig> = {
   // --- USA (The Lottery Office) ---
@@ -86,17 +87,14 @@ export const GAME_CONFIGS: Record<LotteryGameType, GameConfig> = {
   }
 };
 
-// --- AFFILIATE CONFIGURATION (THE LOTTERY OFFICE) ---
-// STEP 1: Sign up for "The Lottery Office" Affiliate Program.
-// STEP 2: Get your tracking parameter (usually looks like '?a_aid=YOUR_ID' or '?ref=YOUR_ID').
-// STEP 3: Paste it below.
-export const AFFILIATE_QUERY_PARAM = ''; // e.g. '?a_aid=123456'
+// --- AFFILIATE CONFIGURATION ---
+export const AFFILIATE_QUERY_PARAM = settings.affiliates.trackingParam;
 
-// STEP 4: Set the Base URL (Default: The Lottery Office)
-export const PARTNER_BASE_URL = 'https://www.lotteryoffice.com.au';
+// Base URL (Default: The Lottery Office)
+export const PARTNER_BASE_URL = settings.affiliates.partnerBaseUrl;
 
 // --- DONATION / TIP JAR CONFIGURATION ---
-export const DONATION_LINK = 'https://ko-fi.com'; 
+export const DONATION_LINK = settings.donation.url;
 
 // Helper to construct URL safely
 const getLink = (path: string) => {
