@@ -7,30 +7,18 @@ import { GAME_CONFIGS } from "../constants";
  * Executes AI requests with a robust fallback strategy.
  * 
  * PRIORITY ORDER:
- * 1. Manual Key (LocalStorage) - Developer override.
- * 2. Environment Key (process.env) - Injected by Vite (works for Local Dev & Static Builds).
- * 3. Runtime Key (window.process) - For environments like IDX/AI Studio.
- * 4. Server Proxy (/api/generate) - For secure production deployments where key is hidden.
+ * 1. Manual Key (LocalStorage) - Developer override (Fastest for testing).
+ * 2. Environment Key (process.env) - Injected by Vite (Local Dev).
+ * 3. Server Proxy (Vercel or Netlify) - Production.
  */
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
   
-  // 1. Gather Client-Side Keys
-  let apiKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
+  // 1. Check for Manual Dev Key (LocalStorage)
+  const localStoredKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
   
-  if (!apiKey) {
-      // Access the key injected by Vite config
-      // @ts-ignore
-      apiKey = process.env.API_KEY;
-  }
-
-  if (!apiKey && typeof window !== 'undefined') {
-      apiKey = (window as any).process?.env?.API_KEY;
-  }
-
-  // 2. Try Client-Side Execution (Fastest & Easiest for Dev)
-  if (apiKey) {
-    const ai = new GoogleGenAI({ apiKey });
+  if (localStoredKey) {
     try {
+      const ai = new GoogleGenAI({ apiKey: localStoredKey });
       const response: GenerateContentResponse = await ai.models.generateContent({ 
         model, 
         contents, 
@@ -42,55 +30,77 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
         groundingMetadata: response.candidates?.[0]?.groundingMetadata
       };
     } catch (err: any) {
-      console.warn("Client-side request failed. Attempting fallback if applicable...", err);
-      // If the error is not about a missing key (e.g. Quota exceeded), we might still want to try the proxy
-      // if we suspect the client key is just invalid but the server might have a valid one.
-      // However, usually we just throw here to avoid double-latency unless it's a network error.
+      console.warn("Manual Key failed:", err);
+      // If manual key fails, we throw immediately so the user knows their key is wrong
+      throw new Error(`Invalid Manual API Key: ${err.message}`);
     }
   }
 
-  // 3. Try Server-Side Proxy (Production Fallback)
-  try {
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, contents, config })
-    });
-    
-    // Check if the endpoint actually exists (common error in local dev without Vercel)
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        // If we get HTML (404), it means the API route doesn't exist
-        if (text.includes("<!DOCTYPE html>")) {
-           throw new Error("API Endpoint missing. (Note: '/api/generate' requires Vercel or a backend server).");
-        }
-        throw new Error("Server returned non-JSON response.");
+  // 2. Check for Vite-Injected Key (Local Development)
+  // @ts-ignore
+  const envKey = process.env.API_KEY;
+  if (envKey && envKey.length > 0 && !envKey.includes("undefined")) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: envKey });
+      const response: GenerateContentResponse = await ai.models.generateContent({ 
+        model, 
+        contents, 
+        config 
+      });
+      return {
+        text: response.text || "",
+        candidates: response.candidates,
+        groundingMetadata: response.candidates?.[0]?.groundingMetadata
+      };
+    } catch (err) {
+      // Continue to proxy if env key fails (rare)
     }
+  }
 
-    const data = await response.json();
+  // 3. Try Server-Side Proxies (Production)
+  // We try Vercel path first, then Netlify path
+  const endpoints = ['/api/generate', '/.netlify/functions/generate'];
+  
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, contents, config })
+      });
+      
+      const contentType = response.headers.get("content-type");
+      if (response.status === 404 || (contentType && !contentType.includes("application/json"))) {
+        // Endpoint doesn't exist, try next one
+        continue;
+      }
 
-    if (!response.ok || data.error) {
-        throw new Error(data.error || `Server Error ${response.status}`);
-    }
+      const data = await response.json();
 
-    return {
-      text: data.text || "",
-      candidates: data.candidates || [],
-      groundingMetadata: data.groundingMetadata
-    };
-  } catch (err: any) {
-    console.error("AI Service Error:", err);
-    
-    // Provide a specific, helpful error message based on the failure mode
-    if (err.message.includes("API Endpoint missing")) {
-         if (!apiKey) {
-             throw new Error("Configuration Error: No API Key found. Please set API_KEY in your .env file or Vercel Settings.");
+      if (!response.ok || data.error) {
+         // Specifically catch the "Key missing" error to prompt the UI
+         if (data.error && data.error.includes("API Key missing")) {
+            throw new Error("MISSING_SERVER_KEY");
          }
+         throw new Error(data.error || `Server Error ${response.status}`);
+      }
+
+      return {
+        text: data.text || "",
+        candidates: data.candidates || [],
+        groundingMetadata: data.groundingMetadata
+      };
+    } catch (err: any) {
+      if (err.message === "MISSING_SERVER_KEY") throw err;
+      // If it's the last endpoint and we failed, throw
+      if (endpoint === endpoints[endpoints.length - 1]) {
+          console.error("AI Service Error:", err);
+          throw new Error(err.message || "AI Service Unavailable.");
+      }
     }
-    
-    throw new Error(err.message || "AI Service Unavailable. Please check your internet connection.");
   }
+  
+  throw new Error("AI Service Unavailable. Please check your connection.");
 }
 
 const getLanguageInstruction = (lang: Language) => {
@@ -110,9 +120,6 @@ const getOfficialSearchTerm = (game: string): string => {
   return map[game] || game;
 };
 
-/**
- * Fetches the latest draw results using Google Search grounding.
- */
 export async function fetchLatestDraws(game: string): Promise<{ data: string; sources: { title: string; uri: string }[] }> {
   const searchTerm = getOfficialSearchTerm(game);
   const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
@@ -138,14 +145,12 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
       data: response.text,
       sources: sources
     };
-  } catch (error) {
-    throw error;
+  } catch (error: any) {
+    if (error.message === "MISSING_SERVER_KEY") throw error;
+    throw new Error("Failed to fetch data. Server busy.");
   }
 }
 
-/**
- * Performs deep statistical analysis and generates prediction entries using Pro model.
- */
 export async function analyzeAndPredict(
   game: string,
   history: string,
@@ -205,13 +210,11 @@ export async function analyzeAndPredict(
 
     return JSON.parse(response.text || "{}") as PredictionResult;
   } catch (error: any) {
+    if (error.message === "MISSING_SERVER_KEY") throw error;
     throw new Error(error.message || "Prediction failed. Please try again.");
   }
 }
 
-/**
- * Scans market patterns and historical data to suggest lucky numbers.
- */
 export async function getAiSuggestions(
   game: string,
   _history: string,
@@ -243,9 +246,6 @@ export async function getAiSuggestions(
   }
 }
 
-/**
- * Generates an AI vision board image.
- */
 export async function generateLuckyImage(numbers: number[], gameName: string): Promise<string | null> {
   const prompt = `A highly detailed, ethereal vision board for winning the ${gameName}. 
   The image should feature the lucky numbers ${numbers.join(', ')} integrated into a cosmic theme of wealth and prosperity. 

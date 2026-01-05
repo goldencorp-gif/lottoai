@@ -96,6 +96,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
       localStorage.setItem('gemini_api_key', manualApiKey);
       setShowDevSettings(false);
       setError(null);
+      // Optional: Auto-retry analysis if needed
   };
 
   const handlePredict = async () => {
@@ -127,7 +128,12 @@ const PredictorView: React.FC<PredictorViewProps> = ({
       );
       setResults(prediction);
     } catch (err: any) {
-      setError(err.message || "Analysis failed. The server is busy or unreachable.");
+      if (err.message === "MISSING_SERVER_KEY") {
+         setError("Server Configuration Missing. Please set API_KEY.");
+         setShowDevSettings(true); // Auto-open settings for admin
+      } else {
+         setError(err.message || "Analysis failed. The server is busy or unreachable.");
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -401,6 +407,16 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                      </div>
                      <h3 className="text-lg font-black text-white uppercase tracking-tight">Developer Mode</h3>
                  </div>
+
+                 {error && error.includes("Missing") && (
+                   <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-xs text-yellow-400 font-bold flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div>
+                        Admin: The server API key is not configured. 
+                        Please enter a key below to enable the app temporarily.
+                      </div>
+                   </div>
+                 )}
 
                  <p className="text-xs text-gray-400 mb-4 leading-relaxed">
                      Override server-side API key with a local testing key. Leave empty to use server default.
