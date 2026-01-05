@@ -2,29 +2,19 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
 import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 
-// --- HYBRID API CLIENT ---
-
-// This function determines whether to use the direct SDK (Preview Mode) 
-// or the Vercel Serverless Function (Production Mode).
+/**
+ * Internal helper to execute GenAI requests with direct SDK access and fallback proxy support.
+ */
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
   let apiKey = "";
   try {
-    // If running in a context where process.env is polyfilled (local Vite), use it.
-    // In production Vercel, this might be undefined on the client, forcing the fetch fallback.
     apiKey = process.env.API_KEY || "";
-  } catch (e) {
-    // Ignore environment error
-  }
+  } catch (e) {}
 
-  // OPTION 1: DIRECT SDK (Client-side Key Available - Local Dev)
   if (apiKey) {
     const ai = new GoogleGenAI({ apiKey });
     try {
-      const response = await ai.models.generateContent({
-        model,
-        contents,
-        config
-      });
+      const response = await ai.models.generateContent({ model, contents, config });
       return {
         text: response.text || "",
         candidates: response.candidates,
@@ -32,106 +22,49 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       };
     } catch (err) {
       console.warn("Direct SDK failed, attempting backend proxy...", err);
-      // Fallthrough to Option 2
     }
   }
 
-  // OPTION 2: PROXY VIA VERCEL FUNCTION (Production)
   try {
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, contents, config })
     });
-
-    if (response.status === 404) {
-      console.error("Backend function not found. Ensure Vercel functions are deployed.");
-      throw new Error("Backend Service Not Found.");
-    }
-
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      let errorMessage = `Server Error: ${response.status} ${response.statusText}`;
-      try {
-        const errorJson = JSON.parse(responseText);
-        if (errorJson.error) {
-          errorMessage = errorJson.error;
-        } else if (errorJson.message) {
-           errorMessage = errorJson.message;
-        }
-      } catch (e) {
-        if (responseText && responseText.length < 200) {
-            errorMessage = `Server Error: ${responseText}`;
-        }
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = JSON.parse(responseText);
-    
+    const data = await response.json();
     return {
       text: data.text || "",
       candidates: data.candidates || [],
       groundingMetadata: data.groundingMetadata
     };
   } catch (err: any) {
-    console.error("API Request Failed:", err);
     throw new Error(err.message || "Failed to connect to AI service.");
   }
 }
 
-// --- UTILITIES ---
-
 const getLanguageInstruction = (lang: Language) => {
   switch (lang) {
-    case 'zh': return "Respond in Simplified Chinese (Mandarin).";
+    case 'zh': return "Respond in Simplified Chinese.";
     case 'es': return "Respond in Spanish.";
-    case 'hi': return "Respond in Hindi.";
-    case 'vi': return "Respond in Vietnamese.";
     default: return "Respond in English.";
   }
 };
 
 const getOfficialSearchTerm = (game: string): string => {
   const map: Record<string, string> = {
-    [LotteryGameType.US_POWERBALL]: "US Powerball",
-    [LotteryGameType.US_MEGA_MILLIONS]: "US Mega Millions",
-    [LotteryGameType.EURO_MILLIONS]: "EuroMillions",
-    [LotteryGameType.EURO_JACKPOT]: "EuroJackpot",
-    [LotteryGameType.ITALIAN_SUPER]: "SuperEnalotto",
-    [LotteryGameType.UK_LOTTO]: "UK National Lottery",
-    [LotteryGameType.IRISH_LOTTO]: "Irish National Lottery",
-    [LotteryGameType.LA_PRIMITIVA]: "La Primitiva Spain",
-    [LotteryGameType.AU_SAT_LOTTO]: "Australian Saturday Lotto",
-    [LotteryGameType.AU_MON_WED_LOTTO]: "Australian Monday Wednesday Lotto",
-    [LotteryGameType.AU_OZ_LOTTO]: "Oz Lotto Australia",
+    [LotteryGameType.US_POWERBALL]: "USA Powerball",
+    [LotteryGameType.US_MEGA_MILLIONS]: "USA Mega Millions",
     [LotteryGameType.AU_POWERBALL]: "Australian Powerball",
-    [LotteryGameType.AU_SET_FOR_LIFE]: "Set for Life Australia"
   };
   return map[game] || game;
 };
 
-// --- API FUNCTIONS ---
-
+/**
+ * Fetches the latest draw results using Google Search grounding.
+ */
 export async function fetchLatestDraws(game: string): Promise<string> {
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const searchTerm = getOfficialSearchTerm(game);
-  
-  const prompt = `
-    Task: Find the official winning numbers for "${searchTerm}".
-    Action: Use Google Search to find the most recent results.
-    
-    CRITICAL LIMIT: Retrieve exactly the last 10 draws up to ${today}. 
-    Do not process more than 10 rows.
-    
-    Required Output Format (Text Only List):
-    "Draw [Date]: [Main Numbers] (Bonus: [Bonus Numbers])"
-    
-    Notes:
-    - If the official site has 20+ results, IGNORE the older ones. Stop after 10.
-    - Strictly formatted list only. No intro/outro text.
-  `;
+  const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
 
   try {
     const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
@@ -139,114 +72,21 @@ export async function fetchLatestDraws(game: string): Promise<string> {
     });
 
     let text = response.text || "";
-    
-    if (!text) {
-       if (response.groundingMetadata) {
-         return "Found sources but couldn't extract text. Please verify manually via the 'Verify on Google' button.";
-       }
-       return "Could not retrieve results automatically. Please enter data manually.";
-    }
-
     const chunks = response.groundingMetadata?.groundingChunks || [];
-    const sources = chunks
-      .map((c: any) => c.web?.uri)
-      .filter((uri: string) => uri);
+    const sources = chunks.map((c: any) => c.web?.uri).filter((u: string) => u);
 
     if (sources.length > 0) {
-      const uniqueSources = [...new Set(sources)];
-      text += "\n\n--- Verified Sources ---\n" + uniqueSources.slice(0, 3).join('\n');
+      text += "\n\nSOURCES:\n" + [...new Set(sources)].slice(0, 3).join('\n');
     }
-
     return text;
   } catch (error) {
-    console.error("Error fetching latest draws:", error);
     throw error;
   }
 }
 
-export async function generateLuckyImage(numbers: number[], gameName: string): Promise<string | null> {
-  const focusNumbers = numbers.slice(0, 5).join(', ');
-  const prompt = `A cinematic, high-quality 3D render of lottery balls for the game ${gameName} with the numbers ${focusNumbers} floating in a mystical, golden glowing void. 
-  The balls are shiny, polished textures. There is magical gold dust in the air. 
-  The lighting is dramatic and luxurious. Photorealistic, 8k resolution, lottery luck theme.`;
-
-  try {
-    const response = await executeGenAIRequest('gemini-2.5-flash-image', {
-       parts: [{ text: prompt }]
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
-  } catch (error) {
-    console.error("Image Generation Error:", error);
-    return null;
-  }
-}
-
-export async function getAiSuggestions(
-  game: string,
-  history: string,
-  enabledTheories: string[],
-  unwantedNumbers: number[] = [],
-  angelNumberHint: string = "",
-  customConfig?: Partial<GameConfig>,
-  language: Language = 'en'
-): Promise<number[]> {
-  const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
-  const config = { ...baseConfig, ...customConfig };
-  const langPrompt = getLanguageInstruction(language);
-
-  const exclusionPrompt = unwantedNumbers.length > 0
-    ? `CRITICAL EXCLUSION: You MUST NOT include any of these numbers: ${unwantedNumbers.join(', ')}.`
-    : "";
-  
-  const angelContext = angelNumberHint
-    ? `CONSIDER ANGEL HINT: "${angelNumberHint}". If this hint suggests numbers, prioritize them.`
-    : "";
-
-  const prompt = `
-    You are an expert Lottery Analyst.
-    ${langPrompt}
-    Game: ${game} (${config.mainCount} balls, 1-${config.mainRange}).
-    
-    HISTORY DATA:
-    ${history || "No history provided."}
-
-    Theories: ${enabledTheories.join(', ')}.
-    ${angelContext}
-
-    Task: Return 5-10 strong candidate numbers based on the analysis.
-    ${exclusionPrompt}
-
-    Return ONLY a JSON object: { "numbers": [int] }
-  `;
-
-  try {
-     const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            numbers: {
-              type: Type.ARRAY,
-              items: { type: Type.NUMBER }
-            }
-          }
-        }
-     });
-    
-    const json = JSON.parse(response.text || "{}");
-    return json.numbers || [];
-  } catch (error) {
-    console.error("Suggestion Error", error);
-    return [];
-  }
-}
-
+/**
+ * Performs deep statistical analysis and generates prediction entries.
+ */
 export async function analyzeAndPredict(
   game: string,
   history: string,
@@ -263,122 +103,27 @@ export async function analyzeAndPredict(
   
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
-  
   const isSystem = systemNumber !== null && systemNumber > config.mainCount;
   
-  const isSeparateBarrelGame = 
-    game === LotteryGameType.US_POWERBALL || 
-    game === LotteryGameType.US_MEGA_MILLIONS || 
-    game === LotteryGameType.EURO_MILLIONS || 
-    game === LotteryGameType.EURO_JACKPOT || 
-    game === LotteryGameType.ITALIAN_SUPER || 
-    game === LotteryGameType.LA_PRIMITIVA || 
-    game === LotteryGameType.AU_POWERBALL;
-  
-  const langPrompt = getLanguageInstruction(language);
-
-  const coveragePrompt = includeCoverageStrategy 
-    ? `STRATEGY: Win Coverage is ACTIVE. Calculate probabilities for Top 3 divisions. Provide 'coverageStats'.`
-    : "";
-
-  const exclusionPrompt = unwantedNumbers.length > 0
-    ? `EXCLUDE: ${unwantedNumbers.join(', ')}.`
-    : "";
-
-  const angelContext = angelNumberHint
-    ? `ANGEL SIGNAL: "${angelNumberHint}". Prioritize patterns matching this signal.`
-    : "";
-
-  const theoryContext = LOTTERY_THEORIES
-    .filter(t => enabledTheories.includes(t.name))
-    .map(t => `- ${t.name}: ${t.description}`)
-    .join('\n');
-
-  const historyContent = history && history.trim().length > 0
-    ? `HISTORY DATA PROVIDED:\n${history}\n\n*** CRITICAL INSTRUCTION ***:\n1. Analyze the history specifically for Hot (frequent) and Cold (overdue) numbers.\n2. In your analysis JSON field, you MUST explicitly mention which numbers were chosen based on history.`
-    : `NO HISTORY DATA.\nPerform Theoretical Probability Analysis only.`;
-
-  const powerballInstructions = isSeparateBarrelGame 
-    ? `TWO BARRELS: Main (1-${config.mainRange}) and Bonus (1-${config.bonusRange || 20}). Analyze independently. Output 'powerballs' array.`
-    : "ONE BARREL: Main numbers only. Ignore 'powerballs' output.";
-
   const systemInstruction = `
-    You are an expert Lottery Analyst.
-    ${langPrompt}
+    You are a Master Lottery Statistician.
+    ${getLanguageInstruction(language)}
     
-    Game: ${game}
-    Structure: ${config.mainCount} balls (1-${config.mainRange}).
+    ANALYSIS REQUIREMENTS:
+    1. HOT/COLD CHECK: Identify numbers appearing most and least in history.
+    2. SEQUENTIAL GAP: Look for numbers that haven't appeared in a long duration.
+    3. THEORIES: ${enabledTheories.join(', ')}.
     
-    Enabled Theories:
-    ${theoryContext || "General Statistics"}
+    GAME RULES: ${config.mainCount} balls (1-${config.mainRange}).
+    
+    EXCLUDE: ${unwantedNumbers.join(', ')}.
+    FAVOR: ${luckyNumbers.join(', ')}.
+    ${angelNumberHint ? `ANGEL SYMBOLISM: "${angelNumberHint}"` : ''}
 
-    ${angelContext}
-    ${powerballInstructions}
-    
-    Mode: ${isSystem ? `System ${systemNumber}` : 'Standard'} (${entryCount} lines).
-
-    ${exclusionPrompt}
-    ${coveragePrompt}
-    
-    ${historyContent}
-
-    Return JSON:
-    - entries: Array of arrays (main numbers only, sorted).
-    - powerballs: Array of numbers (if applicable).
-    - analysis: Explanation of strategy. Mention specific history trends if data was provided.
-    - theoriesApplied: List of theories.
-    - suggestedNumbers: List of top picks.
-    - strategicWeight: Confidence score (1-100).
-    - coverageStats: Optional array of { division, probability, requirement }.
+    RETURN JSON ONLY.
   `;
 
-  const userPrompt = `
-    Entry Count: ${entryCount}
-    Lucky Numbers: ${luckyNumbers.join(', ') || 'None'}
-    Unwanted: ${unwantedNumbers.join(', ') || 'None'}
-    Angel Hint: ${angelNumberHint || 'None'}
-    
-    Generate predictions now.
-  `;
-
-  const schemaProperties: any = {
-    entries: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.ARRAY,
-        items: { type: Type.NUMBER }
-      }
-    },
-    analysis: { type: Type.STRING },
-    theoriesApplied: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING }
-    },
-    suggestedNumbers: {
-      type: Type.ARRAY,
-      items: { type: Type.NUMBER }
-    },
-    strategicWeight: { type: Type.NUMBER },
-    coverageStats: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          division: { type: Type.STRING },
-          probability: { type: Type.STRING },
-          requirement: { type: Type.STRING }
-        },
-        required: ["division", "probability", "requirement"]
-      }
-    }
-  };
-
-  if (isSeparateBarrelGame) {
-    schemaProperties.powerballs = {
-      type: Type.ARRAY,
-      items: { type: Type.NUMBER }
-    };
-  }
+  const userPrompt = `History:\n${history}\n\nGenerate ${entryCount} ${isSystem ? 'System ' + systemNumber : 'Standard'} lines.`;
 
   try {
     const response = await executeGenAIRequest('gemini-3-flash-preview', userPrompt, {
@@ -386,22 +131,86 @@ export async function analyzeAndPredict(
        responseMimeType: "application/json",
        responseSchema: {
          type: Type.OBJECT,
-         properties: schemaProperties,
-         required: ["entries", "analysis", "theoriesApplied", "strategicWeight", "suggestedNumbers"]
+         properties: {
+           entries: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } } },
+           powerballs: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+           analysis: { type: Type.STRING },
+           theoriesApplied: { type: Type.ARRAY, items: { type: Type.STRING } },
+           strategicWeight: { type: Type.NUMBER }
+         },
+         required: ["entries", "analysis", "strategicWeight"]
        }
     });
 
-    const result = JSON.parse(response.text || "{}");
-    return {
-      ...result,
-      systemLabel: isSystem ? `System ${systemNumber}` : 'Standard',
-      groundingSources: response.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
-        title: chunk.web?.title || "Market Data",
-        uri: chunk.web?.uri || ""
-      })).filter((s: any) => s.uri)
-    };
+    return JSON.parse(response.text || "{}");
   } catch (error) {
-    console.error("Prediction Error:", error);
-    throw new Error("Analysis engine failed.");
+    throw new Error("AI Prediction failed.");
+  }
+}
+
+/**
+ * Scans market patterns and historical data to suggest lucky numbers.
+ */
+export async function getAiSuggestions(
+  game: string,
+  history: string,
+  enabledTheories: string[],
+  unwantedNumbers: number[],
+  angelInput: string,
+  customConfig?: Partial<GameConfig>,
+  language: Language = 'en'
+): Promise<number[]> {
+  const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
+  const config = { ...baseConfig, ...customConfig };
+
+  const prompt = `Based on history and selected theories (${enabledTheories.join(', ')}), suggest 5 lucky numbers for ${game} (1-${config.mainRange}).
+  Exclude: ${unwantedNumbers.join(', ')}. 
+  Angel signal context: ${angelInput}.
+  Return a JSON array of 5 numbers only.`;
+
+  try {
+    const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: { type: Type.NUMBER }
+      }
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    console.error("AI Suggestions failed", error);
+    return [];
+  }
+}
+
+/**
+ * Generates an AI vision board image based on lucky numbers using the Flash Image model.
+ */
+export async function generateLuckyImage(numbers: number[], gameName: string): Promise<string | null> {
+  const prompt = `A highly detailed, ethereal vision board for winning the ${gameName}. 
+  The image should feature the lucky numbers ${numbers.join(', ')} integrated into a cosmic theme of wealth and prosperity. 
+  Hyper-realistic, gold and indigo tones, sparkles and light rays.`;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        imageConfig: { aspectRatio: "1:1" }
+      }
+    });
+
+    // Iterate through parts to find the image part
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Lucky image generation failed", error);
+    return null;
   }
 }
