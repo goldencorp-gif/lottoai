@@ -70,8 +70,12 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
     };
   } catch (err: any) {
     // Provide a helpful error message if the proxy specifically complained about the key
-    if (err.message.includes("API Key missing")) {
-       throw new Error("Missing API Key. Please click 'Connect Google Account' or configure API_KEY in settings.");
+    if (err.message.includes("API Key missing") || err.message.includes("403")) {
+       // Check if we are in an environment that supports UI-based key selection
+       if (typeof window !== 'undefined' && window.aistudio) {
+          throw new Error("Action Required: Please click 'Connect Google Account' to enable AI features.");
+       }
+       throw new Error("Missing API Key. Please configure API_KEY in your .env file or hosting provider.");
     }
     throw new Error(err.message || "Failed to connect to AI service.");
   }

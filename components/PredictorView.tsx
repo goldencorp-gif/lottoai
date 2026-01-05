@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { LotteryGameType, PredictionResult, GameConfig, SavedPrediction } from '../types';
 import { GAME_CONFIGS, LOTTERY_THEORIES, BUY_LINKS } from '../constants';
@@ -54,11 +55,16 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
   const [hasAiStudio, setHasAiStudio] = useState(false);
+  const [needsApiKey, setNeedsApiKey] = useState(false);
 
   useEffect(() => {
     // Check if running in an environment with AI Studio key selection
     if (typeof window !== 'undefined' && window.aistudio) {
       setHasAiStudio(true);
+      // Proactively check if key is selected
+      window.aistudio.hasSelectedApiKey().then(has => {
+        setNeedsApiKey(!has);
+      }).catch(err => console.error("API Key check error", err));
     }
   }, []);
 
@@ -94,6 +100,8 @@ const PredictorView: React.FC<PredictorViewProps> = ({
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
+        const has = await window.aistudio.hasSelectedApiKey();
+        setNeedsApiKey(!has);
         // Clear error and retry logically (user will click execute again)
         setError(null);
       } catch (e) {
@@ -107,19 +115,6 @@ const PredictorView: React.FC<PredictorViewProps> = ({
     setError(null);
     setSavedStatus(false);
     
-    // Check for API key in AI Studio environment
-    if (hasAiStudio && window.aistudio) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-            // If no key selected yet, prompt user
-            // We can't automatically prompt inside the click handler easily without breaking flow, 
-            // but we can try opening it if checking returns false.
-            // Best pattern: Try to select if not present.
-            // However, to avoid race conditions described in instructions, we proceed.
-            // If it fails, the error block below will show the button.
-        }
-    }
-
     try {
       const sysNum = selectedSystem === 'standard' ? null : selectedSystem;
       
@@ -170,6 +165,28 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 relative">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* API Key Warning Banner (Proactive) */}
+        {needsApiKey && (
+          <div className="lg:col-span-12 mb-2 p-6 bg-indigo-600 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-indigo-400/30">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-full">
+                <Key className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white uppercase tracking-tight">AI Access Required</h3>
+                <p className="text-xs text-indigo-200 font-medium">Connect your Google account to unlock Gemini models.</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleApiKeySelection}
+              className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-black uppercase text-xs tracking-wide hover:bg-indigo-50 transition-colors shadow-lg"
+            >
+              Connect Google Account
+            </button>
+          </div>
+        )}
+
         <div className="lg:col-span-4 space-y-6">
           {/* STEP 1: Market Selection */}
           <section className="glass-panel rounded-3xl p-6 shadow-2xl border-white/5">
@@ -332,8 +349,8 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                     <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
                     <p className="text-sm text-red-300 font-bold">{error}</p>
                   </div>
-                  {/* Show API Key Connect button if applicable */}
-                  {hasAiStudio && (error.includes("API Key") || error.includes("403")) && (
+                  {/* Show API Key Connect button if applicable and not already visible at top */}
+                  {hasAiStudio && (error.includes("API Key") || error.includes("403")) && !needsApiKey && (
                     <button 
                       onClick={handleApiKeySelection}
                       className="ml-9 px-4 py-2 bg-white text-black rounded-lg text-xs font-black uppercase flex items-center gap-2 hover:bg-gray-200 transition-colors"
