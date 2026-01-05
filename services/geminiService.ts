@@ -9,6 +9,7 @@ import { GAME_CONFIGS } from "../constants";
  */
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
   // Use process.env.API_KEY as per guidelines.
+  // Due to Vite config updates, this now supports runtime injection (e.g. AI Studio).
   const apiKey = process.env.API_KEY;
 
   if (apiKey) {
@@ -30,6 +31,8 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
     } catch (err) {
       console.warn("Direct SDK failed, attempting backend proxy...", err);
     }
+  } else {
+    console.debug("No Client-Side API Key found (process.env.API_KEY is empty). Falling back to proxy.");
   }
 
   // Fallback to proxy if local key is not provided or fails
@@ -61,6 +64,10 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       groundingMetadata: data.groundingMetadata
     };
   } catch (err: any) {
+    // Provide a helpful error message if the proxy specifically complained about the key
+    if (err.message.includes("API Key missing")) {
+       throw new Error("Missing API Key. Please click 'Connect Google Account' or configure API_KEY in settings.");
+    }
     throw new Error(err.message || "Failed to connect to AI service.");
   }
 }
