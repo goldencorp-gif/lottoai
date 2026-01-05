@@ -40,6 +40,13 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       body: JSON.stringify({ model, contents, config })
     });
     
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Proxy returned non-JSON:", text.substring(0, 100));
+        throw new Error(`AI Service Unavailable (Status ${response.status}). Please configure API_KEY in .env or Vercel.`);
+    }
+
     // Parse response body
     const data = await response.json();
 
@@ -173,8 +180,8 @@ export async function analyzeAndPredict(
 
     // Ensure type safety when parsing JSON
     return JSON.parse(response.text || "{}") as PredictionResult;
-  } catch (error) {
-    throw new Error("AI Prediction failed.");
+  } catch (error: any) {
+    throw new Error(error.message || "AI Prediction failed.");
   }
 }
 

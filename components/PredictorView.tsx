@@ -8,7 +8,7 @@ import NumberBall from './NumberBall';
 import { 
   Brain, RefreshCw, Send, Target, CheckCircle2,
   Percent, Globe, Sliders, Database, ArrowRight,
-  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin
+  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin, AlertCircle
 } from 'lucide-react';
 
 interface PredictorViewProps {
@@ -52,8 +52,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<PredictionResult | null>(null);
   
-  // 'error' was unused, so we omit it from destructuring
-  const [, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
 
   const config = useMemo(() => {
@@ -111,8 +110,8 @@ const PredictorView: React.FC<PredictorViewProps> = ({
         language
       );
       setResults(prediction);
-    } catch (err) {
-      setError("Analysis failed. Try simplifying parameters.");
+    } catch (err: any) {
+      setError(err.message || "Analysis failed. Try simplifying parameters or checking your connection.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -293,6 +292,13 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                 </div>
               )}
             </div>
+
+            {error && (
+               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                  <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
+                  <p className="text-sm text-red-300 font-bold">{error}</p>
+               </div>
+            )}
 
             {!results && !isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-32 text-center opacity-30">
