@@ -5,16 +5,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Polyfill process.env.API_KEY for the browser
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
+    // Polyfill process.env.API_KEY for the browser.
+    // We use || '' to ensure it doesn't crash if the env var is undefined during build.
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
   },
-  server: {
-    proxy: {
-      '/.netlify/functions': {
-        target: 'http://localhost:8888',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
+  // Vercel handles API routing automatically via the /api directory, so no server proxy is needed for production.
 });

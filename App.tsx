@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { LotteryGameType, GameConfig } from './types';
 import { GAME_CONFIGS } from './constants';
 import CommercialNotice from './components/CommercialNotice';
@@ -11,14 +10,10 @@ import InputWizardView from './components/InputWizardView';
 import LuckTesterView from './components/LuckTesterView';
 import MoonBlocksView from './components/MoonBlocksView';
 import LegalModal from './components/LegalModal';
-import { Shield, Key } from 'lucide-react';
 
 type ViewType = 'predictor' | 'simulator' | 'guide' | 'wizard' | 'luck-tester' | 'moon-blocks';
 
 const App: React.FC = () => {
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [isCheckingKey, setIsCheckingKey] = useState(true);
-
   const [currentView, setCurrentView] = useState<ViewType>('predictor');
   
   // Legal Modal State
@@ -30,40 +25,6 @@ const App: React.FC = () => {
   const [historyText, setHistoryText] = useState<string>('');
   const [luckyNumbersInput, setLuckyNumbersInput] = useState<string>('');
   const [angelInput, setAngelInput] = useState<string>('');
-
-  useEffect(() => {
-    const checkApiKey = async () => {
-      try {
-        if ((window as any).aistudio) {
-          const hasSelected = await (window as any).aistudio.hasSelectedApiKey();
-          setHasApiKey(hasSelected);
-        } else {
-          // In environments without the helper, we assume the key is possibly set via build
-          // or we simply proceed and let the service handle the error.
-          // However, to avoid "API Key Missing" error loops, we proceed.
-          setHasApiKey(true);
-        }
-      } catch (e) {
-        console.error("Error checking API key status", e);
-        setHasApiKey(true); // Fallback
-      } finally {
-        setIsCheckingKey(false);
-      }
-    };
-    checkApiKey();
-  }, []);
-
-  const handleSelectKey = async () => {
-    if ((window as any).aistudio) {
-      try {
-        await (window as any).aistudio.openSelectKey();
-        // Assume success as per instructions to mitigate race condition
-        setHasApiKey(true);
-      } catch (e) {
-        console.error("Error selecting API key", e);
-      }
-    }
-  };
 
   const handleWizardComplete = (data: string) => {
     setHistoryText(data);
@@ -78,47 +39,6 @@ const App: React.FC = () => {
     }
     setCurrentView('predictor');
   };
-
-  if (isCheckingKey) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
-  }
-
-  if (!hasApiKey) {
-    return (
-      <div className="min-h-screen bg-[#030712] flex items-center justify-center p-6 text-white font-sans">
-        <div className="max-w-md w-full bg-gray-900 border border-white/10 rounded-3xl p-8 text-center shadow-2xl space-y-8 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
-          
-          <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto border border-indigo-500/20">
-            <Shield className="w-10 h-10 text-indigo-400" />
-          </div>
-
-          <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight mb-3">Authentication Required</h1>
-            <p className="text-sm text-gray-400 leading-relaxed">
-              To use the Lotto AI prediction engine, you must connect a valid Google Gemini API Key.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <button 
-              onClick={handleSelectKey}
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2"
-            >
-              <Key className="w-5 h-5" /> Select API Key
-            </button>
-            
-            <p className="text-[10px] text-gray-500">
-              This application requires a paid API key from a Google Cloud Project.<br/>
-              <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-                View Billing Documentation
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const isFullScreenView = currentView === 'wizard' || currentView === 'luck-tester' || currentView === 'moon-blocks';
 

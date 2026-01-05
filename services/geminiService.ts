@@ -5,18 +5,18 @@ import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 // --- HYBRID API CLIENT ---
 
 // This function determines whether to use the direct SDK (Preview Mode) 
-// or the Netlify Serverless Function (Production Mode).
+// or the Vercel Serverless Function (Production Mode).
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
   let apiKey = "";
   try {
-    // In Vite/React, env vars often need specific prefixes or config.
-    // We check standard process.env just in case, but usually this is empty in browser.
+    // If running in a context where process.env is polyfilled (local Vite), use it.
+    // In production Vercel, this might be undefined on the client, forcing the fetch fallback.
     apiKey = process.env.API_KEY || "";
   } catch (e) {
     // Ignore environment error
   }
 
-  // OPTION 1: DIRECT SDK (AI Studio / Local Dev with Key)
+  // OPTION 1: DIRECT SDK (Client-side Key Available - Local Dev)
   if (apiKey) {
     const ai = new GoogleGenAI({ apiKey });
     try {
@@ -31,24 +31,22 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
         groundingMetadata: response.candidates?.[0]?.groundingMetadata
       };
     } catch (err) {
-      console.error("Direct SDK Error:", err);
-      throw err;
+      console.warn("Direct SDK failed, attempting backend proxy...", err);
+      // Fallthrough to Option 2
     }
   }
 
-  // OPTION 2: PROXY VIA NETLIFY FUNCTION (Production)
-  // When deployed, the API_KEY is hidden on the server. We call the backend function.
+  // OPTION 2: PROXY VIA VERCEL FUNCTION (Production)
   try {
-    // We use a relative path. Netlify redirects /.netlify/functions/ to the function.
-    const response = await fetch('/.netlify/functions/generate', {
+    const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, contents, config })
     });
 
     if (response.status === 404) {
-      console.error("Netlify Function 404: Ensure netlify.toml exists and functions are built.");
-      throw new Error("Backend connection failed (404). Please check site deployment configuration.");
+      console.error("Backend function not found. Ensure Vercel functions are deployed.");
+      throw new Error("Backend Service Not Found.");
     }
 
     const responseText = await response.text();
@@ -59,25 +57,26 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
         const errorJson = JSON.parse(responseText);
         if (errorJson.error) {
           errorMessage = errorJson.error;
+        } else if (errorJson.message) {
+           errorMessage = errorJson.message;
         }
       } catch (e) {
-        // If not JSON, use the raw text if available
-        if (responseText) errorMessage = `Server Error: ${responseText}`;
+        if (responseText && responseText.length < 200) {
+            errorMessage = `Server Error: ${responseText}`;
+        }
       }
       throw new Error(errorMessage);
     }
 
     const data = JSON.parse(responseText);
     
-    // Normalize response to match SDK structure
     return {
       text: data.text || "",
       candidates: data.candidates || [],
       groundingMetadata: data.groundingMetadata
     };
   } catch (err: any) {
-    console.error("Netlify Function Error:", err);
-    // Pass through the specific error message from the server if possible
+    console.error("API Request Failed:", err);
     throw new Error(err.message || "Failed to connect to AI service.");
   }
 }
@@ -124,7 +123,7 @@ export async function fetchLatestDraws(game: string): Promise<string> {
     Action: Use Google Search to find the most recent results.
     
     CRITICAL LIMIT: Retrieve exactly the last 10 draws up to ${today}. 
-    Do not process more than 10 rows to ensure speed.
+    Do not process more than 10 rows.
     
     Required Output Format (Text Only List):
     "Draw [Date]: [Main Numbers] (Bonus: [Bonus Numbers])"
@@ -148,7 +147,6 @@ export async function fetchLatestDraws(game: string): Promise<string> {
        return "Could not retrieve results automatically. Please enter data manually.";
     }
 
-    // Extract grounding sources (URLs)
     const chunks = response.groundingMetadata?.groundingChunks || [];
     const sources = chunks
       .map((c: any) => c.web?.uri)
@@ -205,42 +203,19 @@ export async function getAiSuggestions(
     ? `CRITICAL EXCLUSION: You MUST NOT include any of these numbers: ${unwantedNumbers.join(', ')}.`
     : "";
 
-  const angelContext = angelNumberHint
-    ? `USER ANGEL SIGNAL: The user has provided a specific signal/sighting: "${angelNumberHint}". Interpret this signal into relevant numbers (e.g., if they saw 11:11, consider 11 or 22; if they saw birds, consider numbers associated with symbols). PRIORITIZE patterns matching this signal within the Angel Numbers Theory.`
-    : "";
-
-  const theoryContext = LOTTERY_THEORIES
-    .filter(t => enabledTheories.includes(t.name))
-    .map(t => `- ${t.name}: ${t.description}`)
-    .join('\n');
-
-  const allTheoryNames = LOTTERY_THEORIES.map(t => t.name);
-  const disabledTheories = allTheoryNames.filter(name => !enabledTheories.includes(name));
-  const negativePrompt = disabledTheories.length > 0 
-      ? `STRICT CONSTRAINT: You must IGNORE the following theories as they are disabled: ${disabledTheories.join(', ')}. Do not let these methods influence the selection.` 
-      : "";
-  
-  const historyContent = history && history.trim().length > 0
-    ? `History: ${history}\n\nIMPORTANT: Analyze this historical data to identify frequency patterns. Explicitly favor 'Hot' numbers (frequent in recent draws) and avoid 'Cold' numbers unless the 'Landing Areas Theory' suggests a correction is due.`
-    : `History: NO HISTORICAL DATA PROVIDED.
-       ACTION: Generate numbers based purely on Theoretical Probability for a ${config.mainCount}/${config.mainRange} game structure. 
-       Ignore "Repeat Numbers Theory" and "Similar Sequence Theory" as there is no history to analyze. Focus on Angel Numbers or Random Distribution.`;
-
   const prompt = `
-    You are an expert Lottery Analyst using specific mathematical models.
-    Game: ${game} (${config.mainCount} numbers from 1-${config.mainRange}).
-    ${historyContent}
+    You are an expert Lottery Analyst.
+    Game: ${game} (${config.mainCount} balls, 1-${config.mainRange}).
     
-    You must strictly apply ONLY the following enabled theories to find the strongest numbers:
-    ${theoryContext || "Apply general statistical frequency and distribution analysis only."}
+    HISTORY DATA:
+    ${history || "No history provided."}
 
-    ${negativePrompt}
-    ${angelContext}
+    Theories: ${enabledTheories.join(', ')}.
 
-    Task: Analyze the context and identify 5-10 numbers that best satisfy the criteria of the ENABLED theories listed above.
+    Task: Return 5-10 strong candidate numbers based on the analysis.
     ${exclusionPrompt}
 
-    Return ONLY a JSON object with a property 'numbers' containing an array of integers.
+    Return ONLY a JSON object: { "numbers": [int] }
   `;
 
   try {
@@ -290,28 +265,22 @@ export async function analyzeAndPredict(
     game === LotteryGameType.US_MEGA_MILLIONS || 
     game === LotteryGameType.EURO_MILLIONS || 
     game === LotteryGameType.EURO_JACKPOT || 
-    game === LotteryGameType.ITALIAN_SUPER ||
+    game === LotteryGameType.ITALIAN_SUPER || 
     game === LotteryGameType.LA_PRIMITIVA || 
     game === LotteryGameType.AU_POWERBALL;
   
   const langPrompt = getLanguageInstruction(language);
 
   const coveragePrompt = includeCoverageStrategy 
-    ? `EXTREMELY IMPORTANT: The user wants a "Win Coverage Strategy". 
-       Based on the mathematical odds of ${game} (${config.mainCount} balls from ${config.mainRange}) and the fact they are playing ${entryCount} ${isSystem ? `System ${systemNumber}` : 'Standard'} entries:
-       1. Calculate the approximate probability of winning the Top 3 divisions (Div 1, Div 2, Div 3).
-       2. For 'probability', provide the odds (e.g., '1 in 8,000,000' or '1 in 500'). NEVER return 'N/A' or 'Unknown'. If specific odds are complex, provide a best-effort mathematical estimate based on combinations.
-       3. For 'requirement', explicitly state the win condition (e.g., 'Match 6 Main', 'Match 5 + Supp'). NEVER return 'N/A'.
-       4. Provide exactly 3 rows in the 'coverageStats' array for the top 3 prize tiers.
-       Ensure the text explanation is in ${language}.`
+    ? `STRATEGY: Win Coverage is ACTIVE. Calculate probabilities for Top 3 divisions. Provide 'coverageStats'.`
     : "";
 
   const exclusionPrompt = unwantedNumbers.length > 0
-    ? `CRITICAL EXCLUSION: You MUST NOT include any of these numbers: ${unwantedNumbers.join(', ')}.`
+    ? `EXCLUDE: ${unwantedNumbers.join(', ')}.`
     : "";
 
   const angelContext = angelNumberHint
-    ? `USER ANGEL SIGNAL: The user has provided a specific signal/sighting: "${angelNumberHint}". Interpret this signal into relevant numbers (e.g., if they saw 11:11, consider 11 or 22; if they saw birds, consider numbers associated with symbols). PRIORITIZE patterns matching this signal within the Angel Numbers Theory.`
+    ? `ANGEL SIGNAL: "${angelNumberHint}". Prioritize patterns matching this signal.`
     : "";
 
   const theoryContext = LOTTERY_THEORIES
@@ -319,74 +288,51 @@ export async function analyzeAndPredict(
     .map(t => `- ${t.name}: ${t.description}`)
     .join('\n');
 
-  const allTheoryNames = LOTTERY_THEORIES.map(t => t.name);
-  const disabledTheories = allTheoryNames.filter(name => !enabledTheories.includes(name));
-  const negativePrompt = disabledTheories.length > 0 
-      ? `STRICT CONSTRAINT: You must IGNORE the following theories as they are disabled: ${disabledTheories.join(', ')}. Do not let these methods influence the selection.` 
-      : "";
+  const historyContent = history && history.trim().length > 0
+    ? `HISTORY DATA PROVIDED:\n${history}\n\n*** CRITICAL INSTRUCTION ***:\n1. Analyze the history specifically for Hot (frequent) and Cold (overdue) numbers.\n2. In your analysis JSON field, you MUST explicitly mention which numbers were chosen based on history.`
+    : `NO HISTORY DATA.\nPerform Theoretical Probability Analysis only.`;
 
   const powerballInstructions = isSeparateBarrelGame 
-    ? `
-      CRITICAL TWO-BARREL GAME INSTRUCTION:
-      The Game is ${game}. It has TWO separate barrels.
-      1. Main Barrel: Numbers 1 to ${config.mainRange}.
-      2. Bonus/Power/Star Barrel: Numbers 1 to ${config.bonusRange || 20}.
-      
-      You must analyze both barrels independently from the history.
-      For each entry, you MUST provide:
-      - The Main Numbers in the 'entries' array.
-      - A SINGLE strongest Powerball/MegaBall/Star number in the 'powerballs' array. 
-      (Even if the game draws 2 stars like EuroMillions, provide the ONE most statistically probable number for this field).
-      `
-    : "IMPORTANT: ONLY provide the MAIN set of numbers for each entry. IGNORE supplementary/bonus numbers in the output.";
-
-  const historyContent = history && history.trim().length > 0
-    ? `History: ${history}\n\nIMPORTANT: Analyze this historical data to identify frequency patterns. Explicitly favor 'Hot' numbers (frequent in recent draws) and avoid 'Cold' numbers unless the 'Landing Areas Theory' suggests a correction is due.`
-    : `History: NO HISTORICAL DATA PROVIDED.
-       IMPORTANT: You must perform a "Cold Analysis" based purely on Theoretical Probability and the Game Rules defined above.
-       - Do not reference past draws.
-       - Use Random Distribution logic combined with enabled theories (like Angel Numbers if applicable).
-       - In the 'analysis' section, explicitly state that this is a Theoretical Projection because no history was provided.`;
+    ? `TWO BARRELS: Main (1-${config.mainRange}) and Bonus (1-${config.bonusRange || 20}). Analyze independently. Output 'powerballs' array.`
+    : "ONE BARREL: Main numbers only. Ignore 'powerballs' output.";
 
   const systemInstruction = `
-    You are an expert Global Lottery Analyst and Mathematician. 
+    You are an expert Lottery Analyst.
     ${langPrompt}
     
     Game: ${game}
-    Structure: ${config.mainCount} main numbers (range 1-${config.mainRange}).
+    Structure: ${config.mainCount} balls (1-${config.mainRange}).
     
-    You must apply ONLY the following enabled theories:
-    ${theoryContext || "General statistical analysis only."}
+    Enabled Theories:
+    ${theoryContext || "General Statistics"}
 
-    ${negativePrompt}
     ${angelContext}
-
     ${powerballInstructions}
     
-    ${isSystem ? `System ${systemNumber} Mode: Provide ${systemNumber} numbers per entry.` : `Standard Mode: Provide ${config.mainCount} numbers per entry.`}
+    Mode: ${isSystem ? `System ${systemNumber}` : 'Standard'} (${entryCount} lines).
 
     ${exclusionPrompt}
     ${coveragePrompt}
     
-    IF History is provided, you MUST analyze it to determine the probabilities based on the enabled theories (e.g. Repeat Numbers).
+    ${historyContent}
 
-    Return your response as a JSON object with:
-    - entries: An array of ${entryCount} arrays. Each inner array must have exactly ${actualMainCount} main numbers (sorted).
-    - powerballs: ${isSeparateBarrelGame ? `An array of ${entryCount} integers (one Powerball/Star per entry) range 1-${config.bonusRange}.` : `Leave empty or omitted.`}
-    - analysis: Detailed explanation of how the specific theories were applied. If Powerball/Star, explain the selection specifically. (MUST BE IN ${language}).
-    - theoriesApplied: Array of names of theories used.
-    - suggestedNumbers: A distinct list of 5-10 "Hot" or "High Confidence" numbers.
-    - strategicWeight: A number from 1 to 100 representing confidence.
-    - coverageStats: (Optional) Array of { division, probability, requirement }.
+    Return JSON:
+    - entries: Array of arrays (main numbers only, sorted).
+    - powerballs: Array of numbers (if applicable).
+    - analysis: Explanation of strategy. Mention specific history trends if data was provided.
+    - theoriesApplied: List of theories.
+    - suggestedNumbers: List of top picks.
+    - strategicWeight: Confidence score (1-100).
+    - coverageStats: Optional array of { division, probability, requirement }.
   `;
 
   const userPrompt = `
-    ${historyContent}
-    Entry: ${isSystem ? `System ${systemNumber}` : 'Standard'} (${entryCount} sets)
+    Entry Count: ${entryCount}
     Lucky Numbers: ${luckyNumbers.join(', ') || 'None'}
-    Unwanted Numbers: ${unwantedNumbers.join(', ') || 'None'}
-    Angel Signal Hint: ${angelNumberHint || 'None'}
-    Perform deep statistical analysis now.
+    Unwanted: ${unwantedNumbers.join(', ') || 'None'}
+    Angel Hint: ${angelNumberHint || 'None'}
+    
+    Generate predictions now.
   `;
 
   const schemaProperties: any = {
@@ -424,8 +370,7 @@ export async function analyzeAndPredict(
   if (isSeparateBarrelGame) {
     schemaProperties.powerballs = {
       type: Type.ARRAY,
-      items: { type: Type.NUMBER },
-      description: `The separate Powerball/Star/Reintegro number for each entry (1-${config.bonusRange})`
+      items: { type: Type.NUMBER }
     };
   }
 
@@ -436,7 +381,7 @@ export async function analyzeAndPredict(
        responseSchema: {
          type: Type.OBJECT,
          properties: schemaProperties,
-         required: ["entries", "analysis", "theoriesApplied", "strategicWeight", "suggestedNumbers", ...(isSeparateBarrelGame ? ["powerballs"] : [])]
+         required: ["entries", "analysis", "theoriesApplied", "strategicWeight", "suggestedNumbers"]
        }
     });
 

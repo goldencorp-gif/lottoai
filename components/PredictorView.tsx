@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { LotteryGameType, PredictionResult, GameConfig } from '../types';
 import { GAME_CONFIGS, LOTTERY_THEORIES, BUY_LINKS } from '../constants';
@@ -94,7 +93,6 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   };
 
   const handlePredict = async () => {
-    // Blocking check removed. AI will handle empty history as "Cold Analysis".
     setIsAnalyzing(true);
     setError(null);
     try {
@@ -121,7 +119,6 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   };
 
   const handleGetSuggestions = async () => {
-    // Blocking check removed.
     setIsSuggesting(true);
     setError(null);
     try {
@@ -164,6 +161,8 @@ const PredictorView: React.FC<PredictorViewProps> = ({
       if (originalName.includes('Angel')) return t('theory.angel');
       return originalName;
   };
+
+  const hasHistory = historyText.length > 50;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 relative">
@@ -244,8 +243,8 @@ const PredictorView: React.FC<PredictorViewProps> = ({
             <div className="bg-gray-900/40 rounded-2xl p-4 border border-gray-800 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 font-bold uppercase">Status</span>
-                <span className={`text-xs font-black uppercase ${historyText.length > 50 ? 'text-green-400' : 'text-red-400'}`}>
-                  {historyText.length > 50 ? t('step2.status.active') : t('step2.status.missing')}
+                <span className={`text-xs font-black uppercase ${hasHistory ? 'text-green-400' : 'text-red-400'}`}>
+                  {hasHistory ? t('step2.status.active') : t('step2.status.missing')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -388,7 +387,6 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                     ) : (
                         <button
                             onClick={handleGetSuggestions}
-                            // Disabled removed so user can request pure AI suggestions
                             className="w-full h-full flex items-center justify-center gap-2 text-[10px] font-bold text-indigo-400/60 hover:text-indigo-400 uppercase tracking-wide transition-colors"
                         >
                             {t('btn.scan')}
@@ -492,8 +490,12 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                   <Brain className="w-12 h-12 text-indigo-400 absolute inset-0 m-auto animate-pulse" />
                 </div>
                 <div className="text-center">
-                  <h3 className="text-2xl font-black text-white uppercase tracking-widest mb-2">{t('res.analyzing')}</h3>
-                  <p className="text-xs text-gray-500 font-mono italic animate-bounce">{t('res.sub')}</p>
+                  <h3 className="text-2xl font-black text-white uppercase tracking-widest mb-2">
+                     {hasHistory ? "Analyzing Historical Data" : t('res.analyzing')}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-mono italic animate-bounce">
+                     {hasHistory ? "Applying Hot/Cold Pattern Recognition..." : t('res.sub')}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -605,7 +607,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
             {isAnalyzing ? <RefreshCw className="w-7 h-7 animate-spin" /> : <Send className="w-7 h-7 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
-            {isAnalyzing ? t('btn.processing') : t('btn.execute')}
+            {isAnalyzing ? (hasHistory ? "Analyzing History..." : t('btn.processing')) : t('btn.execute')}
           </button>
         </div>
       </div>
