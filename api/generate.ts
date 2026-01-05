@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 // Vercel Serverless Function Handler
@@ -36,17 +37,18 @@ export default async function handler(request: any, response: any) {
 
     const ai = new GoogleGenAI({ apiKey });
     
+    // Note: generateContent can handle both simple text and complex objects
     const result = await ai.models.generateContent({
       model: model,
       contents: contents,
       config: config || {}
     });
 
-    // Handle null/empty responses gracefully
     if (!result) {
        throw new Error("Empty response from AI provider.");
     }
 
+    // Standardize response format
     return response.status(200).json({
       text: result.text || "",
       candidates: result.candidates || [],
@@ -55,7 +57,6 @@ export default async function handler(request: any, response: any) {
 
   } catch (error: any) {
     console.error("Vercel Function Error:", error);
-    // Return the actual error message for debugging purposes
     return response.status(500).json({ 
       error: error.message || "Internal Server Error",
       details: error.toString()

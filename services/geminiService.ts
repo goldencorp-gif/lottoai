@@ -4,43 +4,37 @@ import { LotteryGameType, PredictionResult, GameConfig, Language } from "../type
 import { GAME_CONFIGS } from "../constants";
 
 /**
- * Internal helper to execute GenAI requests with direct SDK access and fallback proxy support.
- * Refactored to follow @google/genai guidelines strictly.
+ * Executes AI requests.
+ * STRATEGY: PROXY FIRST (Business Mode)
+ * 1. Try to call the backend API (/api/generate). This keeps keys secure and UX clean.
+ * 2. If a developer/user has manually set a key in LocalStorage (Dev Mode), use that directly.
  */
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
-  // Check for API key in multiple locations:
-  // 1. process.env.API_KEY (Injected by Vite at build time)
-  // 2. window.process.env.API_KEY (Injected by AI Studio at runtime)
-  // 3. window.aistudio (Implicit context)
   
-  // Note: We cast window to any to avoid TypeScript errors with global process object
-  const runtimeKey = (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY);
-  const apiKey = process.env.API_KEY || runtimeKey;
-
-  if (apiKey) {
-    // Create a new instance for each request to ensure up-to-date config/key
-    const ai = new GoogleGenAI({ apiKey });
+  // 1. Check for Manual Dev Key (Optional override for developers)
+  const localStoredKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
+  
+  // If a manual key exists, use Client-Side execution (Dev Mode)
+  if (localStoredKey) {
+    const ai = new GoogleGenAI({ apiKey: localStoredKey });
     try {
-      // Use generateContent directly
       const response: GenerateContentResponse = await ai.models.generateContent({ 
         model, 
         contents, 
         config 
       });
-      // response.text is a property, not a method.
       return {
         text: response.text || "",
         candidates: response.candidates,
         groundingMetadata: response.candidates?.[0]?.groundingMetadata
       };
     } catch (err) {
-      console.warn("Direct SDK failed, attempting backend proxy...", err);
+      console.warn("Manual Key failed, falling back to server...", err);
     }
-  } else {
-    console.debug("No Client-Side API Key found. Falling back to proxy.");
   }
 
-  // Fallback to proxy if local key is not provided or fails
+  // 2. Default: Call Server-Side Proxy (Business Mode)
+  // This is what 99% of users will use. No login required.
   try {
     const response = await fetch('/api/generate', {
       method: 'POST',
@@ -50,17 +44,14 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
     
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error("Proxy returned non-JSON:", text.substring(0, 100));
-        throw new Error(`AI Service Unavailable (Status ${response.status}). Please configure API_KEY in .env or Vercel.`);
+        // If we get HTML back (like a 404 page), the backend isn't configured correctly.
+        throw new Error("Server API not reachable. Please ensure the app is deployed correctly.");
     }
 
-    // Parse response body
     const data = await response.json();
 
-    // Check for HTTP errors or API errors returned in JSON
     if (!response.ok || data.error) {
-        throw new Error(data.error || data.details || `Server Error: ${response.status}`);
+        throw new Error(data.error || "Server processing failed.");
     }
 
     return {
@@ -69,15 +60,8 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       groundingMetadata: data.groundingMetadata
     };
   } catch (err: any) {
-    // Provide a helpful error message if the proxy specifically complained about the key
-    if (err.message.includes("API Key missing") || err.message.includes("403")) {
-       // Check if we are in an environment that supports UI-based key selection
-       if (typeof window !== 'undefined' && window.aistudio) {
-          throw new Error("Action Required: Please click 'Connect Google Account' to enable AI features.");
-       }
-       throw new Error("Missing API Key. Please configure API_KEY in your .env file or hosting provider.");
-    }
-    throw new Error(err.message || "Failed to connect to AI service.");
+    console.error("AI Service Error:", err);
+    throw new Error("AI Service Unavailable. Please try again later.");
   }
 }
 
@@ -106,17 +90,15 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
   const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
 
   try {
-    // Upgraded to 'gemini-3-pro-preview' to ensure robust tool execution and data extraction.
     const response = await executeGenAIRequest('gemini-3-pro-preview', prompt, {
       tools: [{ googleSearch: {} }],
     });
 
     if (!response.text) {
-        throw new Error("AI returned empty response. Check API configuration.");
+        throw new Error("Analysis engine returned empty data.");
     }
 
     const sources: { title: string; uri: string }[] = [];
-    // Extract website URLs from grounding chunks as per guidelines.
     const chunks = response.groundingMetadata?.groundingChunks || [];
     chunks.forEach((c: any) => {
       if (c.web?.uri) {
@@ -177,7 +159,6 @@ export async function analyzeAndPredict(
   const userPrompt = `History Data Provided:\n${history}\n\nTask: Generate ${entryCount} ${isSystem ? 'System ' + systemNumber : 'Standard'} lines for ${game}.`;
 
   try {
-    // Use gemini-3-pro-preview for complex reasoning tasks.
     const response = await executeGenAIRequest('gemini-3-pro-preview', userPrompt, {
        systemInstruction,
        responseMimeType: "application/json",
@@ -194,10 +175,9 @@ export async function analyzeAndPredict(
        }
     });
 
-    // Ensure type safety when parsing JSON
     return JSON.parse(response.text || "{}") as PredictionResult;
   } catch (error: any) {
-    throw new Error(error.message || "AI Prediction failed.");
+    throw new Error("Prediction failed. Please try again.");
   }
 }
 
@@ -231,13 +211,12 @@ export async function getAiSuggestions(
     });
     return JSON.parse(response.text || "[]") as number[];
   } catch (error) {
-    console.error("AI Suggestions failed", error);
     return [];
   }
 }
 
 /**
- * Generates an AI vision board image based on lucky numbers using the Flash Image model.
+ * Generates an AI vision board image.
  */
 export async function generateLuckyImage(numbers: number[], gameName: string): Promise<string | null> {
   const prompt = `A highly detailed, ethereal vision board for winning the ${gameName}. 
@@ -245,21 +224,12 @@ export async function generateLuckyImage(numbers: number[], gameName: string): P
   Hyper-realistic, gold and indigo tones, sparkles and light rays.`;
 
   try {
-    const runtimeKey = (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY);
-    const apiKey = process.env.API_KEY || runtimeKey;
-    
-    if (!apiKey) return null;
-
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: { parts: [{ text: prompt }] },
-      config: {
-        imageConfig: { aspectRatio: "1:1" }
-      }
+    const response = await executeGenAIRequest('gemini-2.5-flash-image', {
+       parts: [{ text: prompt }] 
+    }, {
+      imageConfig: { aspectRatio: "1:1" }
     });
 
-    // Iterate through parts to find the image part as per guidelines.
     const parts = response.candidates?.[0]?.content?.parts || [];
     for (const part of parts) {
       if (part.inlineData) {
@@ -268,7 +238,6 @@ export async function generateLuckyImage(numbers: number[], gameName: string): P
     }
     return null;
   } catch (error) {
-    console.error("Lucky image generation failed", error);
     return null;
   }
 }

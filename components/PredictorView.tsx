@@ -8,7 +8,7 @@ import NumberBall from './NumberBall';
 import { 
   Brain, RefreshCw, Send, Target, CheckCircle2,
   Percent, Globe, Sliders, Database, ArrowRight,
-  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin, AlertCircle, Key
+  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin, AlertCircle, Settings, X, Save, Key
 } from 'lucide-react';
 
 interface PredictorViewProps {
@@ -31,7 +31,6 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   selectedGame, 
   setSelectedGame, 
   customParams,
-  // setCustomParams is unused in this component body, removed from destructuring
   historyText, 
   onOpenDataWizard, 
   luckyNumbersInput,
@@ -54,18 +53,15 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   
   const [error, setError] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
-  const [hasAiStudio, setHasAiStudio] = useState(false);
-  const [needsApiKey, setNeedsApiKey] = useState(false);
+  
+  // Developer Mode Manual API Key (Hidden by default)
+  const [showDevSettings, setShowDevSettings] = useState(false);
+  const [manualApiKey, setManualApiKey] = useState('');
 
   useEffect(() => {
-    // Check if running in an environment with AI Studio key selection
-    if (typeof window !== 'undefined' && window.aistudio) {
-      setHasAiStudio(true);
-      // Proactively check if key is selected
-      window.aistudio.hasSelectedApiKey().then(has => {
-        setNeedsApiKey(!has);
-      }).catch(err => console.error("API Key check error", err));
-    }
+    // Load existing dev key if present
+    const storedKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
+    if (storedKey) setManualApiKey(storedKey);
   }, []);
 
   const config = useMemo(() => {
@@ -95,19 +91,11 @@ const PredictorView: React.FC<PredictorViewProps> = ({
       prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]
     );
   };
-
-  const handleApiKeySelection = async () => {
-    if (window.aistudio) {
-      try {
-        await window.aistudio.openSelectKey();
-        const has = await window.aistudio.hasSelectedApiKey();
-        setNeedsApiKey(!has);
-        // Clear error and retry logically (user will click execute again)
-        setError(null);
-      } catch (e) {
-        console.error("Failed to select key", e);
-      }
-    }
+  
+  const handleSaveManualKey = () => {
+      localStorage.setItem('gemini_api_key', manualApiKey);
+      setShowDevSettings(false);
+      setError(null);
   };
 
   const handlePredict = async () => {
@@ -139,7 +127,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
       );
       setResults(prediction);
     } catch (err: any) {
-      setError(err.message || "Analysis failed. Try simplifying parameters or checking your connection.");
+      setError(err.message || "Analysis failed. The server is busy or unreachable.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -166,30 +154,19 @@ const PredictorView: React.FC<PredictorViewProps> = ({
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 relative">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* API Key Warning Banner (Proactive) */}
-        {needsApiKey && (
-          <div className="lg:col-span-12 mb-2 p-6 bg-indigo-600 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 border border-indigo-400/30">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/20 rounded-full">
-                <Key className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-white uppercase tracking-tight">AI Access Required</h3>
-                <p className="text-xs text-indigo-200 font-medium">Connect your Google account to unlock Gemini models.</p>
-              </div>
-            </div>
-            <button 
-              onClick={handleApiKeySelection}
-              className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-black uppercase text-xs tracking-wide hover:bg-indigo-50 transition-colors shadow-lg"
-            >
-              Connect Google Account
-            </button>
-          </div>
-        )}
-
         <div className="lg:col-span-4 space-y-6">
           {/* STEP 1: Market Selection */}
-          <section className="glass-panel rounded-3xl p-6 shadow-2xl border-white/5">
+          <section className="glass-panel rounded-3xl p-6 shadow-2xl border-white/5 relative group/settings">
+            
+            {/* Secret Dev Settings Button (Top Right) */}
+            <button 
+                onClick={() => setShowDevSettings(true)} 
+                className={`absolute top-6 right-6 p-1.5 rounded-lg transition-all opacity-0 group-hover/settings:opacity-100 ${manualApiKey ? 'bg-green-500/10 text-green-400' : 'text-gray-600 hover:text-gray-400'}`}
+                title="Developer Settings"
+            >
+                <Settings className="w-3 h-3" />
+            </button>
+
             <h2 className="text-lg font-black flex items-center gap-2 text-indigo-400 mb-4">
               <Globe className="w-5 h-5" /> {t('step1.title')}
             </h2>
@@ -349,15 +326,6 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                     <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
                     <p className="text-sm text-red-300 font-bold">{error}</p>
                   </div>
-                  {/* Show API Key Connect button if applicable and not already visible at top */}
-                  {hasAiStudio && (error.includes("API Key") || error.includes("403")) && !needsApiKey && (
-                    <button 
-                      onClick={handleApiKeySelection}
-                      className="ml-9 px-4 py-2 bg-white text-black rounded-lg text-xs font-black uppercase flex items-center gap-2 hover:bg-gray-200 transition-colors"
-                    >
-                      <Key className="w-3 h-3" /> Connect Google Account (API Key)
-                    </button>
-                  )}
                </div>
             )}
 
@@ -420,6 +388,39 @@ const PredictorView: React.FC<PredictorViewProps> = ({
           </section>
         </div>
       </div>
+
+      {/* Dev Settings Modal (Hidden unless activated) */}
+      {showDevSettings && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+             <div className="bg-gray-900 border border-white/10 rounded-3xl w-full max-w-md p-6 relative shadow-2xl">
+                 <button onClick={() => setShowDevSettings(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5"/></button>
+                 
+                 <div className="flex items-center gap-3 mb-6">
+                     <div className="p-2 bg-indigo-600 rounded-lg text-white">
+                         <Settings className="w-5 h-5" />
+                     </div>
+                     <h3 className="text-lg font-black text-white uppercase tracking-tight">Developer Mode</h3>
+                 </div>
+
+                 <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+                     Override server-side API key with a local testing key. Leave empty to use server default.
+                 </p>
+
+                 <div className="space-y-4">
+                     <input 
+                        type="password" 
+                        value={manualApiKey}
+                        onChange={(e) => setManualApiKey(e.target.value)}
+                        placeholder="Paste Gemini API Key"
+                        className="w-full bg-black/40 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-indigo-500"
+                     />
+                     <button onClick={handleSaveManualKey} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors shadow-lg">
+                         <Save className="w-4 h-4" /> Save Configuration
+                     </button>
+                 </div>
+             </div>
+        </div>
+      )}
 
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-50">
