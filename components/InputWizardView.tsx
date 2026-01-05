@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
 import { 
   RefreshCw, ArrowLeft, 
-  Trash2, Save, Loader2, Link as LinkIcon
+  Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle
 } from 'lucide-react';
 
 interface InputWizardViewProps {
@@ -20,6 +20,22 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Settings State
+  const [showDevSettings, setShowDevSettings] = useState(false);
+  const [manualApiKey, setManualApiKey] = useState('');
+
+  useEffect(() => {
+    // Load existing dev key
+    const storedKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
+    if (storedKey) setManualApiKey(storedKey);
+  }, []);
+
+  const handleSaveManualKey = () => {
+    localStorage.setItem('gemini_api_key', manualApiKey);
+    setShowDevSettings(false);
+    setError(null);
+  };
+
   const handleFetch = async () => {
     setIsLoading(true);
     setError(null);
@@ -28,7 +44,12 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
       setLocalData(result.data);
       setSources(result.sources);
     } catch (e: any) {
-      setError(e.message || "Failed to fetch data. Verify network connectivity.");
+      if (e.message === "MISSING_SERVER_KEY" || e.message.includes("Invalid Manual API Key")) {
+        setShowDevSettings(true);
+        setError("API Key Error: Please configure a valid Gemini API Key below.");
+      } else {
+        setError(e.message || "Failed to fetch data. Verify network connectivity.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -36,10 +57,19 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
 
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-      <div className="glass-panel rounded-3xl p-8 border-white/5 min-h-[80vh] flex flex-col relative overflow-hidden">
+      <div className="glass-panel rounded-3xl p-8 border-white/5 min-h-[80vh] flex flex-col relative overflow-hidden group/settings">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        
+        {/* Settings Trigger */}
+        <button 
+            onClick={() => setShowDevSettings(true)} 
+            className={`absolute top-6 right-6 p-2 rounded-lg transition-all z-20 ${manualApiKey ? 'bg-green-500/10 text-green-400' : 'bg-gray-800 text-gray-500 hover:text-white'}`}
+            title="API Settings"
+        >
+            <Settings className="w-4 h-4" />
+        </button>
 
-        <div className="flex items-center justify-between mb-8 relative z-10">
+        <div className="flex items-center justify-between mb-8 relative z-10 pr-12">
           <div className="flex items-center gap-4">
             <button onClick={onCancel} className="p-3 bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors group">
               <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-white" />
@@ -49,9 +79,6 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Managing results for {game}</p>
             </div>
           </div>
-          <button onClick={() => setLocalData('')} className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold uppercase flex items-center gap-2">
-            <Trash2 className="w-4 h-4" /> Clear
-          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
@@ -65,7 +92,17 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
                 Sync Results
               </button>
-              {error && <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-400 font-bold">{error}</div>}
+              
+              {error && (
+                 <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-400 font-bold flex flex-col gap-2">
+                    <span>{error}</span>
+                    {error.includes("Key") && (
+                        <button onClick={() => setShowDevSettings(true)} className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 rounded text-red-300 w-full">
+                           Update API Key
+                        </button>
+                    )}
+                 </div>
+              )}
             </div>
 
             {sources.length > 0 && (
@@ -84,8 +121,15 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
             )}
           </div>
 
-          <div className="lg:col-span-2 flex flex-col bg-black/40 border border-gray-800 rounded-3xl p-1">
-             <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder="Paste results or use Sync..." className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
+          <div className="lg:col-span-2 flex flex-col relative">
+             <div className="absolute top-2 right-2 z-10">
+                 <button onClick={() => setLocalData('')} className="px-3 py-1.5 bg-gray-900/80 hover:bg-red-900/50 text-gray-400 hover:text-red-400 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 transition-colors">
+                    <Trash2 className="w-3 h-3" /> Clear
+                </button>
+             </div>
+             <div className="bg-black/40 border border-gray-800 rounded-3xl p-1 flex-grow">
+                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder="Paste results or use Sync..." className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
+             </div>
           </div>
         </div>
 
@@ -95,6 +139,42 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
           </button>
         </div>
       </div>
+
+      {/* Dev Settings Modal */}
+      {showDevSettings && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+             <div className="bg-gray-900 border border-white/10 rounded-3xl w-full max-w-md p-6 relative shadow-2xl">
+                 <button onClick={() => setShowDevSettings(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X className="w-5 h-5"/></button>
+                 
+                 <div className="flex items-center gap-3 mb-6">
+                     <div className="p-2 bg-indigo-600 rounded-lg text-white">
+                         <Settings className="w-5 h-5" />
+                     </div>
+                     <h3 className="text-lg font-black text-white uppercase tracking-tight">API Configuration</h3>
+                 </div>
+
+                 <div className="mb-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      The 'Sync Results' feature requires a valid Gemini API Key with Search Grounding access.
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                     <input 
+                        type="password" 
+                        value={manualApiKey}
+                        onChange={(e) => setManualApiKey(e.target.value)}
+                        placeholder="Paste Gemini API Key"
+                        className="w-full bg-black/40 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-indigo-500"
+                     />
+                     <button onClick={handleSaveManualKey} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors shadow-lg">
+                         <Save className="w-4 h-4" /> Save Configuration
+                     </button>
+                 </div>
+             </div>
+        </div>
+      )}
     </div>
   );
 };

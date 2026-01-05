@@ -3,6 +3,12 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
 import { GAME_CONFIGS } from "../constants";
 
+// Helper to identify if an error is due to rate limiting or quota exhaustion
+const isQuotaError = (err: any): boolean => {
+  const msg = (err?.message || JSON.stringify(err)).toLowerCase();
+  return msg.includes("429") || msg.includes("quota") || msg.includes("resource_exhausted") || msg.includes("too many requests");
+};
+
 /**
  * Executes AI requests with a robust fallback strategy.
  * 
@@ -10,8 +16,10 @@ import { GAME_CONFIGS } from "../constants";
  * 1. Manual Key (LocalStorage) - Developer override (Fastest for testing).
  * 2. Environment Key (process.env) - Injected by Vite (Local Dev).
  * 3. Server Proxy (Vercel or Netlify) - Production.
+ * 
+ * Includes Model Fallback (e.g. Pro -> Flash) if Quota is hit.
  */
-async function executeGenAIRequest(model: string, contents: any, config?: any) {
+async function executeGenAIRequest(model: string, contents: any, config?: any, fallbackModel?: string) {
   
   // 1. Check for Manual Dev Key (LocalStorage)
   const localStoredKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
@@ -19,20 +27,52 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
   if (localStoredKey) {
     try {
       const ai = new GoogleGenAI({ apiKey: localStoredKey });
-      const response: GenerateContentResponse = await ai.models.generateContent({ 
-        model, 
-        contents, 
-        config 
-      });
-      return {
-        text: response.text || "",
-        candidates: response.candidates,
-        groundingMetadata: response.candidates?.[0]?.groundingMetadata
-      };
+      
+      // Attempt with Primary Model
+      try {
+        const response: GenerateContentResponse = await ai.models.generateContent({ 
+            model, 
+            contents, 
+            config 
+        });
+        return {
+            text: response.text || "",
+            candidates: response.candidates,
+            groundingMetadata: response.candidates?.[0]?.groundingMetadata
+        };
+      } catch (innerErr: any) {
+        // Fallback Logic for Manual Key
+        if (isQuotaError(innerErr) && fallbackModel) {
+            console.warn(`[Manual Key] Primary model quota exceeded. Switching to ${fallbackModel}.`);
+            const response: GenerateContentResponse = await ai.models.generateContent({ 
+                model: fallbackModel, 
+                contents, 
+                config 
+            });
+            return {
+                text: response.text || "",
+                candidates: response.candidates,
+                groundingMetadata: response.candidates?.[0]?.groundingMetadata
+            };
+        }
+        throw innerErr;
+      }
+
     } catch (err: any) {
-      console.warn("Manual Key failed:", err);
-      // If manual key fails, we throw immediately so the user knows their key is wrong
-      throw new Error(`Invalid Manual API Key: ${err.message}`);
+      // Security: Do not log the full error object if it might contain key details in URL
+      const safeMsg = err.message || "Unknown error";
+      
+      if (isQuotaError(err)) {
+        throw new Error("Daily AI Quota Exceeded (429). The AI is busy, please try again later or switch API keys.");
+      }
+      
+      // Differentiate between Auth errors and other errors
+      if (safeMsg.includes("API key") || safeMsg.includes("400") || safeMsg.includes("403")) {
+          throw new Error(`Invalid Manual API Key. Please check your settings.`);
+      }
+      
+      console.warn("Manual Key Request Failed"); // Minimal logging
+      throw new Error(`AI Error: ${safeMsg.substring(0, 50)}...`);
     }
   }
 
@@ -42,16 +82,34 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
   if (envKey && envKey.length > 0 && !envKey.includes("undefined")) {
     try {
       const ai = new GoogleGenAI({ apiKey: envKey });
-      const response: GenerateContentResponse = await ai.models.generateContent({ 
-        model, 
-        contents, 
-        config 
-      });
-      return {
-        text: response.text || "",
-        candidates: response.candidates,
-        groundingMetadata: response.candidates?.[0]?.groundingMetadata
-      };
+      
+      try {
+        const response: GenerateContentResponse = await ai.models.generateContent({ 
+            model, 
+            contents, 
+            config 
+        });
+        return {
+            text: response.text || "",
+            candidates: response.candidates,
+            groundingMetadata: response.candidates?.[0]?.groundingMetadata
+        };
+      } catch (innerErr: any) {
+         if (isQuotaError(innerErr) && fallbackModel) {
+            console.warn(`[Env Key] Switching to fallback model due to quota.`);
+            const response: GenerateContentResponse = await ai.models.generateContent({ 
+                model: fallbackModel, 
+                contents, 
+                config 
+            });
+            return {
+                text: response.text || "",
+                candidates: response.candidates,
+                groundingMetadata: response.candidates?.[0]?.groundingMetadata
+            };
+         }
+         throw innerErr;
+      }
     } catch (err) {
       // Continue to proxy if env key fails (rare)
     }
@@ -63,24 +121,40 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
   
   for (const endpoint of endpoints) {
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, contents, config })
-      });
+      // Helper for fetch to allow internal retry
+      const performFetch = async (targetModel: string) => {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: targetModel, contents, config })
+        });
+        return res;
+      };
+
+      let response = await performFetch(model);
       
       const contentType = response.headers.get("content-type");
       if (response.status === 404 || (contentType && !contentType.includes("application/json"))) {
-        // Endpoint doesn't exist, try next one
-        continue;
+        continue; // Endpoint not found, try next
       }
 
-      const data = await response.json();
+      let data = await response.json();
+
+      // Check for Quota Error on Server Side
+      if (!response.ok || (data.error && isQuotaError(data.error))) {
+         if (fallbackModel && (response.status === 429 || isQuotaError(data.error))) {
+             console.warn(`[Server Proxy] Primary model exhausted. Retrying with fallback...`);
+             response = await performFetch(fallbackModel);
+             data = await response.json();
+         }
+      }
 
       if (!response.ok || data.error) {
-         // Specifically catch the "Key missing" error to prompt the UI
          if (data.error && data.error.includes("API Key missing")) {
             throw new Error("MISSING_SERVER_KEY");
+         }
+         if (isQuotaError(data.error || "")) {
+            throw new Error("Server AI Quota Exceeded. Please try again later.");
          }
          throw new Error(data.error || `Server Error ${response.status}`);
       }
@@ -92,9 +166,11 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       };
     } catch (err: any) {
       if (err.message === "MISSING_SERVER_KEY") throw err;
+      if (isQuotaError(err)) throw err;
+
       // If it's the last endpoint and we failed, throw
       if (endpoint === endpoints[endpoints.length - 1]) {
-          console.error("AI Service Error:", err);
+          console.error("AI Service Error: Connection failed");
           throw new Error(err.message || "AI Service Unavailable.");
       }
     }
@@ -125,7 +201,8 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
   const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
 
   try {
-    const response = await executeGenAIRequest('gemini-3-pro-preview', prompt, {
+    // CHANGE: Use Flash model for search. It uses less quota and is sufficient for extraction.
+    const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
       tools: [{ googleSearch: {} }],
     });
 
@@ -146,8 +223,8 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
       sources: sources
     };
   } catch (error: any) {
-    if (error.message === "MISSING_SERVER_KEY") throw error;
-    throw new Error("Failed to fetch data. Server busy.");
+    // Pass through specific errors
+    throw error;
   }
 }
 
@@ -192,26 +269,32 @@ export async function analyzeAndPredict(
   const userPrompt = `History Data Provided:\n${history}\n\nTask: Generate ${entryCount} ${isSystem ? 'System ' + systemNumber : 'Standard'} lines for ${game}.`;
 
   try {
-    const response = await executeGenAIRequest('gemini-3-pro-preview', userPrompt, {
-       systemInstruction,
-       responseMimeType: "application/json",
-       responseSchema: {
-         type: Type.OBJECT,
-         properties: {
-           entries: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } } },
-           powerballs: { type: Type.ARRAY, items: { type: Type.NUMBER } },
-           analysis: { type: Type.STRING },
-           theoriesApplied: { type: Type.ARRAY, items: { type: Type.STRING } },
-           strategicWeight: { type: Type.NUMBER }
-         },
-         required: ["entries", "analysis", "strategicWeight"]
-       }
-    });
+    // CHANGE: Try Pro first, but Fallback to Flash if Pro is exhausted (429)
+    const response = await executeGenAIRequest(
+        'gemini-3-pro-preview', 
+        userPrompt, 
+        {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                entries: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.NUMBER } } },
+                powerballs: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+                analysis: { type: Type.STRING },
+                theoriesApplied: { type: Type.ARRAY, items: { type: Type.STRING } },
+                strategicWeight: { type: Type.NUMBER }
+                },
+                required: ["entries", "analysis", "strategicWeight"]
+            }
+        },
+        'gemini-3-flash-preview' // Fallback Model
+    );
 
     return JSON.parse(response.text || "{}") as PredictionResult;
   } catch (error: any) {
-    if (error.message === "MISSING_SERVER_KEY") throw error;
-    throw new Error(error.message || "Prediction failed. Please try again.");
+    console.error("Prediction Error"); // Minimal log
+    throw error;
   }
 }
 
