@@ -1,47 +1,11 @@
 
-import { Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
 import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 
-// Helper to call our secure server proxy
-// This prevents the API_KEY from being exposed in the browser
-async function callSecureAI(model: string, contents: any, config?: any) {
-  try {
-    const controller = new AbortController();
-    // Extended timeout to allow for deeper search (Google Search can take time)
-    // Netlify Functions limit is 10s (Free) or 26s (Pro). We set client to 28s to be safe.
-    const id = setTimeout(() => controller.abort(), 28000); 
-
-    // Updated endpoint to point to the standard Netlify Function path
-    const response = await fetch('/.netlify/functions/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        contents,
-        config
-      }),
-      signal: controller.signal
-    });
-    
-    clearTimeout(id);
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Server Error: ${response.statusText} ${errorData.error ? `- ${errorData.error}` : ''}`);
-    }
-
-    return await response.json();
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-       throw new Error("Search request timed out. The AI took too long to browse the web.");
-    }
-    console.error("Secure AI Call Failed:", error);
-    throw error;
-  }
-}
+// Initialize Gemini AI Client directly
+// This uses the API key injected into the client environment (e.g., via Vite/Webpack)
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const getLanguageInstruction = (lang: Language) => {
   switch (lang) {
@@ -80,7 +44,7 @@ export async function fetchLatestDraws(game: string): Promise<string> {
   const searchTerm = getOfficialSearchTerm(game);
   
   // Optimized prompt for "Auto-Sync"
-  // Strictly limits the AI to 10 results to prevent long processing times on large history pages
+  // Strictly limits the AI to 10 results to prevent long processing times
   const prompt = `
     Task: Find the official winning numbers for "${searchTerm}".
     Action: Use Google Search to find the most recent results.
@@ -97,23 +61,25 @@ export async function fetchLatestDraws(game: string): Promise<string> {
   `;
 
   try {
-    // We are calling the secure backend which invokes ai.models.generateContent
-    // The 'tools' config here enables the Google Search feature
-    const response = await callSecureAI('gemini-3-flash-preview', prompt, {
-      tools: [{ googleSearch: {} }],
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
     });
 
     let text = response.text || "";
     
     if (!text) {
-       if (response.groundingMetadata) {
+       if (response.candidates?.[0]?.groundingMetadata) {
          return "Found sources but couldn't extract text. Please verify manually via the 'Verify on Google' button.";
        }
        return "Could not retrieve results automatically. Please enter data manually.";
     }
 
     // Extract grounding sources (URLs)
-    const chunks = response.groundingMetadata?.groundingChunks || [];
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const sources = chunks
       .map((c: any) => c.web?.uri)
       .filter((uri: string) => uri);
@@ -137,11 +103,13 @@ export async function generateLuckyImage(numbers: number[], gameName: string): P
   The lighting is dramatic and luxurious. Photorealistic, 8k resolution, lottery luck theme.`;
 
   try {
-    const response = await callSecureAI('gemini-2.5-flash-image', {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
         parts: [{ text: prompt }]
+      }
     });
 
-    // The proxy returns the raw candidates structure
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
@@ -209,20 +177,24 @@ export async function getAiSuggestions(
   `;
 
   try {
-     const response = await callSecureAI('gemini-3-flash-preview', prompt, {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            numbers: {
-              type: Type.ARRAY,
-              items: { type: Type.NUMBER }
+     const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              numbers: {
+                type: Type.ARRAY,
+                items: { type: Type.NUMBER }
+              }
             }
           }
         }
     });
     
-    const json = JSON.parse(response.text);
+    const json = JSON.parse(response.text || "{}");
     return json.numbers || [];
   } catch (error) {
     console.error("Suggestion Error", error);
@@ -254,9 +226,9 @@ export async function analyzeAndPredict(
   const isSeparateBarrelGame = 
     game === LotteryGameType.US_POWERBALL || 
     game === LotteryGameType.US_MEGA_MILLIONS || 
-    game === LotteryGameType.EURO_MILLIONS ||
-    game === LotteryGameType.EURO_JACKPOT ||
-    game === LotteryGameType.LA_PRIMITIVA ||
+    game === LotteryGameType.EURO_MILLIONS || 
+    game === LotteryGameType.EURO_JACKPOT || 
+    game === LotteryGameType.LA_PRIMITIVA || 
     game === LotteryGameType.AU_POWERBALL;
   
   const langPrompt = getLanguageInstruction(language);
@@ -393,21 +365,25 @@ export async function analyzeAndPredict(
   }
 
   try {
-    const response = await callSecureAI('gemini-3-flash-preview', userPrompt, {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: schemaProperties,
-          required: ["entries", "analysis", "theoriesApplied", "strategicWeight", "suggestedNumbers", ...(isSeparateBarrelGame ? ["powerballs"] : [])]
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: userPrompt,
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: schemaProperties,
+            required: ["entries", "analysis", "theoriesApplied", "strategicWeight", "suggestedNumbers", ...(isSeparateBarrelGame ? ["powerballs"] : [])]
+          }
         }
     });
 
-    const result = JSON.parse(response.text);
+    const result = JSON.parse(response.text || "{}");
     return {
       ...result,
       systemLabel: isSystem ? `System ${systemNumber}` : 'Standard',
-      groundingSources: response.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
+      groundingSources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
         title: chunk.web?.title || "Market Data",
         uri: chunk.web?.uri || ""
       })).filter((s: any) => s.uri)
