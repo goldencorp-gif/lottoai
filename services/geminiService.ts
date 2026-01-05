@@ -4,19 +4,32 @@ import { LotteryGameType, PredictionResult, GameConfig, Language } from "../type
 import { GAME_CONFIGS } from "../constants";
 
 /**
- * Executes AI requests.
- * STRATEGY: PROXY FIRST (Business Mode)
- * 1. Try to call the backend API (/api/generate). This keeps keys secure and UX clean.
- * 2. If a developer/user has manually set a key in LocalStorage (Dev Mode), use that directly.
+ * Executes AI requests with a robust fallback strategy.
+ * 
+ * PRIORITY ORDER:
+ * 1. Manual Key (LocalStorage) - Developer override.
+ * 2. Environment Key (process.env) - Injected by Vite (works for Local Dev & Static Builds).
+ * 3. Runtime Key (window.process) - For environments like IDX/AI Studio.
+ * 4. Server Proxy (/api/generate) - For secure production deployments where key is hidden.
  */
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
   
-  // 1. Check for Manual Dev Key (Optional override for developers)
-  const localStoredKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
+  // 1. Gather Client-Side Keys
+  let apiKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
   
-  // If a manual key exists, use Client-Side execution (Dev Mode)
-  if (localStoredKey) {
-    const ai = new GoogleGenAI({ apiKey: localStoredKey });
+  if (!apiKey) {
+      // Access the key injected by Vite config
+      // @ts-ignore
+      apiKey = process.env.API_KEY;
+  }
+
+  if (!apiKey && typeof window !== 'undefined') {
+      apiKey = (window as any).process?.env?.API_KEY;
+  }
+
+  // 2. Try Client-Side Execution (Fastest & Easiest for Dev)
+  if (apiKey) {
+    const ai = new GoogleGenAI({ apiKey });
     try {
       const response: GenerateContentResponse = await ai.models.generateContent({ 
         model, 
@@ -28,13 +41,15 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
         candidates: response.candidates,
         groundingMetadata: response.candidates?.[0]?.groundingMetadata
       };
-    } catch (err) {
-      console.warn("Manual Key failed, falling back to server...", err);
+    } catch (err: any) {
+      console.warn("Client-side request failed. Attempting fallback if applicable...", err);
+      // If the error is not about a missing key (e.g. Quota exceeded), we might still want to try the proxy
+      // if we suspect the client key is just invalid but the server might have a valid one.
+      // However, usually we just throw here to avoid double-latency unless it's a network error.
     }
   }
 
-  // 2. Default: Call Server-Side Proxy (Business Mode)
-  // This is what 99% of users will use. No login required.
+  // 3. Try Server-Side Proxy (Production Fallback)
   try {
     const response = await fetch('/api/generate', {
       method: 'POST',
@@ -42,16 +57,21 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       body: JSON.stringify({ model, contents, config })
     });
     
+    // Check if the endpoint actually exists (common error in local dev without Vercel)
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-        // If we get HTML back (like a 404 page), the backend isn't configured correctly.
-        throw new Error("Server API not reachable. Please ensure the app is deployed correctly.");
+        const text = await response.text();
+        // If we get HTML (404), it means the API route doesn't exist
+        if (text.includes("<!DOCTYPE html>")) {
+           throw new Error("API Endpoint missing. (Note: '/api/generate' requires Vercel or a backend server).");
+        }
+        throw new Error("Server returned non-JSON response.");
     }
 
     const data = await response.json();
 
     if (!response.ok || data.error) {
-        throw new Error(data.error || "Server processing failed.");
+        throw new Error(data.error || `Server Error ${response.status}`);
     }
 
     return {
@@ -61,7 +81,15 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
     };
   } catch (err: any) {
     console.error("AI Service Error:", err);
-    throw new Error("AI Service Unavailable. Please try again later.");
+    
+    // Provide a specific, helpful error message based on the failure mode
+    if (err.message.includes("API Endpoint missing")) {
+         if (!apiKey) {
+             throw new Error("Configuration Error: No API Key found. Please set API_KEY in your .env file or Vercel Settings.");
+         }
+    }
+    
+    throw new Error(err.message || "AI Service Unavailable. Please check your internet connection.");
   }
 }
 
@@ -95,7 +123,7 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
     });
 
     if (!response.text) {
-        throw new Error("Analysis engine returned empty data.");
+        throw new Error("AI returned empty data.");
     }
 
     const sources: { title: string; uri: string }[] = [];
@@ -177,7 +205,7 @@ export async function analyzeAndPredict(
 
     return JSON.parse(response.text || "{}") as PredictionResult;
   } catch (error: any) {
-    throw new Error("Prediction failed. Please try again.");
+    throw new Error(error.message || "Prediction failed. Please try again.");
   }
 }
 
