@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Play, Zap, Tv, Wind, Brain, Terminal, Fan, Aperture, Plus } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Play, Tv, Brain, Terminal, Fan } from 'lucide-react';
 import { LotteryGameType, GameConfig } from '../types';
 import { GAME_CONFIGS } from '../constants';
 import { analyzeAndPredict } from '../services/geminiService';

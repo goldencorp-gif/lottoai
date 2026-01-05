@@ -2,15 +2,14 @@
 import React, { useState, useMemo } from 'react';
 import { LotteryGameType, PredictionResult, GameConfig, SavedPrediction } from '../types';
 import { GAME_CONFIGS, LOTTERY_THEORIES, BUY_LINKS } from '../constants';
-import { analyzeAndPredict, getAiSuggestions } from '../services/geminiService';
+import { analyzeAndPredict } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
 import NumberBall from './NumberBall';
-import Visualizer from './Visualizer';
 import AdUnit from './AdUnit';
 import { 
-  Brain, RefreshCw, Send, Star, Target, CheckCircle2,
-  TrendingUp, Percent, Ban, Globe, Settings2, Sliders, Database, ArrowRight,
-  Eye, Dices, Info, X, Sparkles, Zap, ExternalLink, Moon, Feather, MapPin, AlertCircle, Save, Bookmark, ShieldCheck, Filter
+  Brain, RefreshCw, Send, Target, CheckCircle2,
+  Percent, Globe, Sliders, Database, ArrowRight,
+  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin
 } from 'lucide-react';
 
 interface PredictorViewProps {
@@ -33,7 +32,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   selectedGame, 
   setSelectedGame, 
   customParams,
-  setCustomParams,
+  // setCustomParams is unused in this component body, removed from destructuring
   historyText, 
   onOpenDataWizard, 
   luckyNumbersInput,
@@ -53,8 +52,9 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<PredictionResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [infoTheory, setInfoTheory] = useState<{name: string, description: string} | null>(null);
+  
+  // 'error' was unused, so we omit it from destructuring
+  const [, setError] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
 
   const config = useMemo(() => {

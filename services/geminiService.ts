@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
-import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
+import { GAME_CONFIGS } from "../constants";
 
 /**
  * Internal helper to execute GenAI requests with direct SDK access and fallback proxy support.
@@ -128,6 +128,7 @@ export async function analyzeAndPredict(
     1. HOT/COLD CHECK: Identify numbers appearing most and least in history.
     2. SEQUENTIAL GAP: Look for numbers that haven't appeared in a long duration.
     3. THEORIES: ${enabledTheories.join(', ')}.
+    ${includeCoverageStrategy ? "OPTIMIZE FOR COVERAGE: Ensure entries spread across the number range to maximize statistical probability." : ""}
     
     GAME RULES: ${config.mainCount} balls (1-${config.mainRange}).
     
@@ -142,7 +143,6 @@ export async function analyzeAndPredict(
 
   try {
     // Use gemini-3-pro-preview for complex reasoning tasks.
-    // Fixed: config parameter passed to executeGenAIRequest should not be nested in another 'config' key.
     const response = await executeGenAIRequest('gemini-3-pro-preview', userPrompt, {
        systemInstruction,
        responseMimeType: "application/json",
@@ -171,17 +171,17 @@ export async function analyzeAndPredict(
  */
 export async function getAiSuggestions(
   game: string,
-  history: string,
+  _history: string,
   enabledTheories: string[],
   unwantedNumbers: number[],
   angelInput: string,
   customConfig?: Partial<GameConfig>,
-  language: Language = 'en'
+  _language: Language = 'en'
 ): Promise<number[]> {
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
 
-  const prompt = `Based on history and selected theories (${enabledTheories.join(', ')}), suggest 5 lucky numbers for ${game} (1-${config.mainRange}).
+  const prompt = `Based on selected theories (${enabledTheories.join(', ')}), suggest 5 lucky numbers for ${game} (1-${config.mainRange}).
   Exclude: ${unwantedNumbers.join(', ')}. 
   Angel signal context: ${angelInput}.
   Return a JSON array of 5 numbers only.`;
