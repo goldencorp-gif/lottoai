@@ -90,8 +90,8 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
   const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
 
   try {
-    // Correct model for basic search tasks.
-    const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
+    // Upgraded to 'gemini-3-pro-preview' to ensure robust tool execution and data extraction.
+    const response = await executeGenAIRequest('gemini-3-pro-preview', prompt, {
       tools: [{ googleSearch: {} }],
     });
 
