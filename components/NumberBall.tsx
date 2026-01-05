@@ -20,10 +20,10 @@ const NumberBall: React.FC<NumberBallProps> = ({ number, isBonus, isPowerball })
     <div className={`
       w-10 h-10 md:w-12 md:h-12 
       rounded-full flex items-center justify-center 
-      ${isPowerball ? 'font-black' : 'font-bold'} text-lg md:text-xl
+      ${(isPowerball || isBonus) ? 'font-black' : 'font-bold'} text-lg md:text-xl
       shadow-lg border border-white/20
       ball-glow
-      ${isPowerball ? 'text-gray-900' : 'text-white'}
+      ${(isPowerball || isBonus) ? 'text-gray-900' : 'text-white'}
       ${bgColor}
       transition-transform hover:scale-110
     `}>

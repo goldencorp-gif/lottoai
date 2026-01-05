@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LotteryGameType, GameConfig } from './types';
+import { LotteryGameType, GameConfig, SavedPrediction } from './types';
 import { GAME_CONFIGS } from './constants';
 import CommercialNotice from './components/CommercialNotice';
 import Navigation from './components/Navigation';
@@ -9,9 +9,10 @@ import GuideView from './components/GuideView';
 import InputWizardView from './components/InputWizardView';
 import LuckTesterView from './components/LuckTesterView';
 import MoonBlocksView from './components/MoonBlocksView';
+import VaultView from './components/VaultView';
 import LegalModal from './components/LegalModal';
 
-type ViewType = 'predictor' | 'simulator' | 'guide' | 'wizard' | 'luck-tester' | 'moon-blocks';
+type ViewType = 'predictor' | 'simulator' | 'guide' | 'wizard' | 'luck-tester' | 'moon-blocks' | 'vault';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('predictor');
@@ -40,6 +41,11 @@ const App: React.FC = () => {
     return localStorage.getItem('lotto_angel_input') || '';
   });
 
+  const [savedPredictions, setSavedPredictions] = useState<SavedPrediction[]>(() => {
+    const saved = localStorage.getItem('lotto_vault');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Persist State Changes
   useEffect(() => {
     localStorage.setItem('lotto_selected_game', selectedGame);
@@ -47,7 +53,8 @@ const App: React.FC = () => {
     localStorage.setItem('lotto_history_text', historyText);
     localStorage.setItem('lotto_lucky_numbers', luckyNumbersInput);
     localStorage.setItem('lotto_angel_input', angelInput);
-  }, [selectedGame, customParams, historyText, luckyNumbersInput, angelInput]);
+    localStorage.setItem('lotto_vault', JSON.stringify(savedPredictions));
+  }, [selectedGame, customParams, historyText, luckyNumbersInput, angelInput, savedPredictions]);
 
   const handleWizardComplete = (data: string) => {
     setHistoryText(data);
@@ -61,6 +68,14 @@ const App: React.FC = () => {
       setLuckyNumbersInput(newVal);
     }
     setCurrentView('predictor');
+  };
+
+  const handleSaveToVault = (prediction: SavedPrediction) => {
+    setSavedPredictions(prev => [prediction, ...prev]);
+  };
+
+  const handleDeleteFromVault = (id: string) => {
+    setSavedPredictions(prev => prev.filter(p => p.id !== id));
   };
 
   const isFullScreenView = currentView === 'wizard' || currentView === 'luck-tester' || currentView === 'moon-blocks';
@@ -93,6 +108,7 @@ const App: React.FC = () => {
             setAngelInput={setAngelInput}
             onTestLuck={() => setCurrentView('luck-tester')}
             onTestMoon={() => setCurrentView('moon-blocks')}
+            onSaveToVault={handleSaveToVault}
           />
         )}
         
@@ -101,6 +117,14 @@ const App: React.FC = () => {
             selectedGame={selectedGame}
             historyText={historyText}
             customParams={customParams}
+          />
+        )}
+
+        {currentView === 'vault' && (
+          <VaultView 
+            entries={savedPredictions}
+            onDelete={handleDeleteFromVault}
+            onImport={setSavedPredictions}
           />
         )}
 
@@ -146,13 +170,13 @@ const App: React.FC = () => {
           content={
             legalView === 'privacy' ? (
               <>
-                <p><strong>1. Data Storage</strong><br/>AI Power Draw operates as a client-side simulation tool. All prediction data, user inputs, and history are stored locally on your device via browser LocalStorage. We do not maintain central servers to store your personal lottery data.</p>
-                <p><strong>2. AI Processing</strong><br/>The application utilizes Google Gemini AI APIs for statistical analysis. Data sent to the AI API is processed subject to Google's data processing terms.</p>
+                <p><strong>1. Data Storage</strong><br/>All prediction data, user inputs, and history are stored locally on your device via browser LocalStorage.</p>
+                <p><strong>2. AI Processing</strong><br/>The application utilizes Google Gemini AI APIs. Data sent to the AI API is processed subject to Google's data processing terms.</p>
               </>
             ) : (
               <>
-                 <p><strong>1. Entertainment Purpose</strong><br/>AI Power Draw is strictly a mathematical simulation and analysis tool designed for entertainment and educational purposes regarding probability theory.</p>
-                 <p><strong>2. No Guarantee of Winnings</strong><br/>Lottery games are games of chance. Past performance or statistical analysis cannot guarantee future results.</p>
+                 <p><strong>1. Entertainment Purpose</strong><br/>AI Power Draw is strictly a mathematical simulation and analysis tool for entertainment purposes.</p>
+                 <p><strong>2. No Guarantee of Winnings</strong><br/>Lottery games are based on random chance. Past performance cannot guarantee future results.</p>
               </>
             )
           }

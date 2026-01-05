@@ -31,6 +31,7 @@ export interface GameConfig {
   mainRange: number;
   bonusCount: number;
   bonusRange?: number;
+  suppCount?: number;
   description: string;
   region?: string;
 }

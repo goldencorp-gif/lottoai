@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, PlayCircle, BookOpen, Globe, Download, Share2, Coffee } from 'lucide-react';
+import { Brain, PlayCircle, BookOpen, Globe, Download, Share2, Coffee, Bookmark } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DONATION_LINK } from '../constants';
 
-type ViewType = 'predictor' | 'simulator' | 'guide';
+type ViewType = 'predictor' | 'simulator' | 'guide' | 'vault';
 
 interface NavigationProps {
   currentView: ViewType;
-  setView: (view: ViewType) => void;
+  setView: (view: any) => void;
 }
 
 const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
@@ -17,54 +17,40 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
   const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
     }
-
-    // Capture the PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
+    if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'AI Power Draw',
+        title: 'Lotto AI',
         text: 'Check out this AI Lottery Predictor!',
         url: window.location.href,
       });
     } else {
-      alert("Link copied to clipboard!");
       navigator.clipboard.writeText(window.location.href);
+      alert("Link copied!");
     }
-  };
-
-  const handleDonate = () => {
-    window.open(DONATION_LINK, '_blank');
   };
 
   return (
     <nav className="flex flex-wrap justify-between items-center mb-8 px-4 py-2 gap-4">
       <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('predictor')}>
-         {/* Custom Logo Handling with Fallback */}
          {!logoError ? (
            <img 
              src="/logo.png" 
@@ -77,8 +63,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
              <Brain className="w-5 h-5 text-white" />
            </div>
          )}
-         
-         <span className="font-black text-white tracking-tighter text-lg uppercase hidden md:inline group-hover:text-indigo-400 transition-colors">
+         <span className="font-black text-white tracking-tighter text-lg uppercase hidden md:inline">
            {t('app.title')}
          </span>
       </div>
@@ -99,6 +84,13 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
           <span className="hidden sm:inline">{t('nav.simulator')}</span>
         </button>
         <button 
+          onClick={() => setView('vault')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all relative whitespace-nowrap ${currentView === 'vault' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          <Bookmark className="w-4 h-4" />
+          <span className="hidden sm:inline">Vault</span>
+        </button>
+        <button 
           onClick={() => setView('guide')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap ${currentView === 'guide' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
         >
@@ -108,17 +100,14 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Donation Button */}
         <button 
-          onClick={handleDonate}
+          onClick={() => window.open(DONATION_LINK, '_blank')}
           className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 rounded-xl border border-yellow-500/20 text-xs font-bold uppercase transition-colors"
-          title={t('nav.support')}
         >
           <Coffee className="w-4 h-4" />
           <span className="hidden sm:inline">{t('nav.support')}</span>
         </button>
 
-        {/* Install App Button (Only visible if installable) */}
         {deferredPrompt && !isInstalled && (
           <button 
             onClick={handleInstallClick}
@@ -129,11 +118,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
           </button>
         )}
 
-        {/* Share Button */}
-        <button 
-          onClick={handleShare}
-          className="p-2 bg-gray-900 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-colors"
-        >
+        <button onClick={handleShare} className="p-2 bg-gray-900 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-colors">
           <Share2 className="w-4 h-4" />
         </button>
 
@@ -143,11 +128,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
             <span>{language.toUpperCase()}</span>
           </button>
           <div className="absolute top-full right-0 mt-2 w-32 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-             <button onClick={() => setLanguage('en')} className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-800 ${language === 'en' ? 'text-indigo-400' : 'text-gray-400'}`}>English</button>
-             <button onClick={() => setLanguage('zh')} className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-800 ${language === 'zh' ? 'text-indigo-400' : 'text-gray-400'}`}>中文</button>
-             <button onClick={() => setLanguage('es')} className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-800 ${language === 'es' ? 'text-indigo-400' : 'text-gray-400'}`}>Español</button>
-             <button onClick={() => setLanguage('hi')} className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-800 ${language === 'hi' ? 'text-indigo-400' : 'text-gray-400'}`}>हिन्दी</button>
-             <button onClick={() => setLanguage('vi')} className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-800 ${language === 'vi' ? 'text-indigo-400' : 'text-gray-400'}`}>Tiếng Việt</button>
+             {['en', 'zh', 'es', 'hi', 'vi'].map(lang => (
+               <button key={lang} onClick={() => setLanguage(lang as any)} className={`w-full text-left px-4 py-2 text-xs font-bold hover:bg-gray-800 ${language === lang ? 'text-indigo-400' : 'text-gray-400'}`}>
+                 {lang === 'en' ? 'English' : lang === 'zh' ? '中文' : lang === 'es' ? 'Español' : lang === 'hi' ? 'हिन्दी' : 'Tiếng Việt'}
+               </button>
+             ))}
           </div>
         </div>
       </div>

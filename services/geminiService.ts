@@ -1,20 +1,27 @@
-import { GoogleGenAI, Type } from "@google/genai";
+
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
 import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 
 /**
  * Internal helper to execute GenAI requests with direct SDK access and fallback proxy support.
+ * Refactored to follow @google/genai guidelines strictly.
  */
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
-  let apiKey = "";
-  try {
-    apiKey = process.env.API_KEY || "";
-  } catch (e) {}
+  // Use process.env.API_KEY as per guidelines.
+  const apiKey = process.env.API_KEY;
 
   if (apiKey) {
+    // Create a new instance for each request to ensure up-to-date config/key
     const ai = new GoogleGenAI({ apiKey });
     try {
-      const response = await ai.models.generateContent({ model, contents, config });
+      // Use generateContent directly
+      const response: GenerateContentResponse = await ai.models.generateContent({ 
+        model, 
+        contents, 
+        config 
+      });
+      // response.text is a property, not a method.
       return {
         text: response.text || "",
         candidates: response.candidates,
@@ -25,6 +32,7 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
     }
   }
 
+  // Fallback to proxy if local key is not provided or fails
   try {
     const response = await fetch('/api/generate', {
       method: 'POST',
@@ -62,30 +70,36 @@ const getOfficialSearchTerm = (game: string): string => {
 /**
  * Fetches the latest draw results using Google Search grounding.
  */
-export async function fetchLatestDraws(game: string): Promise<string> {
+export async function fetchLatestDraws(game: string): Promise<{ data: string; sources: { title: string; uri: string }[] }> {
   const searchTerm = getOfficialSearchTerm(game);
   const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
 
   try {
+    // Correct model for basic search tasks.
     const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
       tools: [{ googleSearch: {} }],
     });
 
-    let text = response.text || "";
+    const sources: { title: string; uri: string }[] = [];
+    // Extract website URLs from grounding chunks as per guidelines.
     const chunks = response.groundingMetadata?.groundingChunks || [];
-    const sources = chunks.map((c: any) => c.web?.uri).filter((u: string) => u);
+    chunks.forEach((c: any) => {
+      if (c.web?.uri) {
+        sources.push({ title: c.web.title || "Official Source", uri: c.web.uri });
+      }
+    });
 
-    if (sources.length > 0) {
-      text += "\n\nSOURCES:\n" + [...new Set(sources)].slice(0, 3).join('\n');
-    }
-    return text;
+    return {
+      data: response.text || "No results found.",
+      sources: sources
+    };
   } catch (error) {
     throw error;
   }
 }
 
 /**
- * Performs deep statistical analysis and generates prediction entries.
+ * Performs deep statistical analysis and generates prediction entries using Pro model.
  */
 export async function analyzeAndPredict(
   game: string,
@@ -106,7 +120,8 @@ export async function analyzeAndPredict(
   const isSystem = systemNumber !== null && systemNumber > config.mainCount;
   
   const systemInstruction = `
-    You are a Master Lottery Statistician.
+    You are a Master Lottery Statistician. 
+    Use advanced complex reasoning to evaluate patterns.
     ${getLanguageInstruction(language)}
     
     ANALYSIS REQUIREMENTS:
@@ -123,10 +138,12 @@ export async function analyzeAndPredict(
     RETURN JSON ONLY.
   `;
 
-  const userPrompt = `History:\n${history}\n\nGenerate ${entryCount} ${isSystem ? 'System ' + systemNumber : 'Standard'} lines.`;
+  const userPrompt = `History Data Provided:\n${history}\n\nTask: Generate ${entryCount} ${isSystem ? 'System ' + systemNumber : 'Standard'} lines for ${game}.`;
 
   try {
-    const response = await executeGenAIRequest('gemini-3-flash-preview', userPrompt, {
+    // Use gemini-3-pro-preview for complex reasoning tasks.
+    // Fixed: config parameter passed to executeGenAIRequest should not be nested in another 'config' key.
+    const response = await executeGenAIRequest('gemini-3-pro-preview', userPrompt, {
        systemInstruction,
        responseMimeType: "application/json",
        responseSchema: {
@@ -142,7 +159,8 @@ export async function analyzeAndPredict(
        }
     });
 
-    return JSON.parse(response.text || "{}");
+    // Ensure type safety when parsing JSON
+    return JSON.parse(response.text || "{}") as PredictionResult;
   } catch (error) {
     throw new Error("AI Prediction failed.");
   }
@@ -176,7 +194,7 @@ export async function getAiSuggestions(
         items: { type: Type.NUMBER }
       }
     });
-    return JSON.parse(response.text || "[]");
+    return JSON.parse(response.text || "[]") as number[];
   } catch (error) {
     console.error("AI Suggestions failed", error);
     return [];
@@ -201,7 +219,7 @@ export async function generateLuckyImage(numbers: number[], gameName: string): P
       }
     });
 
-    // Iterate through parts to find the image part
+    // Iterate through parts to find the image part as per guidelines.
     const parts = response.candidates?.[0]?.content?.parts || [];
     for (const part of parts) {
       if (part.inlineData) {
