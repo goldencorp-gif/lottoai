@@ -5,7 +5,6 @@ import { GAME_CONFIGS, LOTTERY_THEORIES, BUY_LINKS } from '../constants';
 import { analyzeAndPredict } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
 import NumberBall from './NumberBall';
-import AdUnit from './AdUnit';
 import { 
   Brain, RefreshCw, Send, Target, CheckCircle2,
   Percent, Globe, Sliders, Database, ArrowRight,
