@@ -8,7 +8,7 @@ import NumberBall from './NumberBall';
 import { 
   Brain, RefreshCw, Send, Target, CheckCircle2,
   Percent, Globe, Sliders, Database, ArrowRight,
-  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin, AlertCircle, Settings, X, Save, Key
+  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin, AlertCircle, Settings, X, Save
 } from 'lucide-react';
 
 interface PredictorViewProps {
