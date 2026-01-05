@@ -64,3 +64,15 @@ export interface PredictionResult {
   coverageStats?: WinTier[];
   visualUrl?: string;
 }
+
+// Extend the global Window interface to include aistudio property
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}
