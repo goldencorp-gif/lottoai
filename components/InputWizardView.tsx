@@ -4,7 +4,7 @@ import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
 import { 
   Database, RefreshCw, CheckCircle2, ArrowLeft, 
-  Trash2, FileText, AlertCircle, Save, ExternalLink, Search, Zap
+  Trash2, FileText, AlertCircle, Save, ExternalLink, Search, Zap, Loader2
 } from 'lucide-react';
 import { GAME_CONFIGS } from '../constants';
 
@@ -24,10 +24,12 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
     setIsLoading(true);
     setError(null);
     try {
+      // Small delay to let user see the loading state immediately
+      await new Promise(r => setTimeout(r, 100));
       const result = await fetchLatestDraws(game);
       setLocalData(result);
-    } catch (e) {
-      setError("Failed to fetch data. Please try again manually.");
+    } catch (e: any) {
+      setError(e.message || "Failed to fetch data. Please try again or use manual verify.");
     } finally {
       setIsLoading(false);
     }
@@ -110,22 +112,32 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
           {/* Left Column: Actions */}
           <div className="space-y-6">
             <div className="p-6 bg-gray-900/40 rounded-3xl border border-gray-800">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Auto-Sync</h3>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Auto-Sync (AI)</h3>
               <p className="text-xs text-gray-400 mb-6 leading-relaxed">
-                Connect to our global data sources to automatically retrieve the latest draw results for <strong>{game}</strong>.
+                Uses Google Gemini to browse the web and extract the latest 10 draw results for <strong>{game}</strong>.
               </p>
               <button 
                 onClick={handleFetch}
                 disabled={isLoading}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded-xl font-bold uppercase tracking-wide flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/20"
+                className={`
+                  w-full py-4 rounded-xl font-bold uppercase tracking-wide flex items-center justify-center gap-2 transition-all shadow-lg
+                  ${isLoading 
+                    ? 'bg-gray-800 text-gray-400 cursor-wait' 
+                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20'}
+                `}
               >
-                {isLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                {isLoading ? 'Searching Live Data...' : 'Fetch Latest Results'}
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                {isLoading ? 'AI Browsing Web...' : 'Auto-Sync Latest Results'}
               </button>
+              {isLoading && (
+                 <div className="mt-3 text-[10px] text-center text-blue-400 animate-pulse">
+                    Please wait while the AI searches official sources...
+                 </div>
+              )}
               {error && (
-                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-xs text-red-400 font-bold">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {error}
+                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2 text-xs text-red-400 font-bold">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>{error}</div>
                 </div>
               )}
             </div>
@@ -144,7 +156,7 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
             </div>
 
             <div className="p-6 bg-gray-900/40 rounded-3xl border border-gray-800">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Trust & Verification</h3>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Manual Verification</h3>
               <p className="text-xs text-gray-400 mb-4 leading-relaxed">
                 Always verify AI-fetched data against official sources. Click below to open a live search check.
               </p>

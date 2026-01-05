@@ -3,6 +3,49 @@ import { LotteryGameType, GameConfig } from './types';
 import { settings } from './siteSettings';
 
 export const GAME_CONFIGS: Record<LotteryGameType, GameConfig> = {
+  // --- AUSTRALIA ---
+  [LotteryGameType.AU_SAT_LOTTO]: {
+    type: LotteryGameType.AU_SAT_LOTTO,
+    mainCount: 6,
+    mainRange: 45,
+    bonusCount: 2,
+    description: 'Pick 6 (1-45)',
+    region: 'Australia'
+  },
+  [LotteryGameType.AU_MON_WED_LOTTO]: {
+    type: LotteryGameType.AU_MON_WED_LOTTO,
+    mainCount: 6,
+    mainRange: 45,
+    bonusCount: 2,
+    description: 'Pick 6 (1-45)',
+    region: 'Australia'
+  },
+  [LotteryGameType.AU_OZ_LOTTO]: {
+    type: LotteryGameType.AU_OZ_LOTTO,
+    mainCount: 7,
+    mainRange: 47,
+    bonusCount: 3,
+    description: 'Pick 7 (1-47)',
+    region: 'Australia'
+  },
+  [LotteryGameType.AU_POWERBALL]: {
+    type: LotteryGameType.AU_POWERBALL,
+    mainCount: 7,
+    mainRange: 35,
+    bonusCount: 1,
+    bonusRange: 20,
+    description: 'Pick 7 (1-35) + PB (1-20)',
+    region: 'Australia'
+  },
+  [LotteryGameType.AU_SET_FOR_LIFE]: {
+    type: LotteryGameType.AU_SET_FOR_LIFE,
+    mainCount: 7,
+    mainRange: 44,
+    bonusCount: 2,
+    description: 'Pick 7 (1-44)',
+    region: 'Australia'
+  },
+
   // --- USA (The Lottery Office) ---
   [LotteryGameType.US_POWERBALL]: {
     type: LotteryGameType.US_POWERBALL,
@@ -122,6 +165,10 @@ export const BUY_LINKS: Partial<Record<LotteryGameType, string>> = {
   [LotteryGameType.UK_LOTTO]: getLink('/uk-lotto'),
   [LotteryGameType.IRISH_LOTTO]: getLink('/irish-lotto'),
   [LotteryGameType.LA_PRIMITIVA]: getLink('/la-primitiva')
+  
+  // Note: Standard Australian games are usually bought via The Lott or similar, 
+  // not "The Lottery Office" which specializes in international.
+  // We leave them undefined here unless you have specific links.
 };
 
 export const LOTTERY_THEORIES = [

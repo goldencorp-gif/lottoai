@@ -7,7 +7,13 @@ import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 // This prevents the API_KEY from being exposed in the browser
 async function callSecureAI(model: string, contents: any, config?: any) {
   try {
-    const response = await fetch('/api/generate', {
+    const controller = new AbortController();
+    // Extended timeout to allow for deeper search (Google Search can take time)
+    // Netlify Functions limit is 10s (Free) or 26s (Pro). We set client to 28s to be safe.
+    const id = setTimeout(() => controller.abort(), 28000); 
+
+    // Updated endpoint to point to the standard Netlify Function path
+    const response = await fetch('/.netlify/functions/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17,14 +23,21 @@ async function callSecureAI(model: string, contents: any, config?: any) {
         contents,
         config
       }),
+      signal: controller.signal
     });
+    
+    clearTimeout(id);
 
     if (!response.ok) {
-      throw new Error(`Server Error: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Server Error: ${response.statusText} ${errorData.error ? `- ${errorData.error}` : ''}`);
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+       throw new Error("Search request timed out. The AI took too long to browse the web.");
+    }
     console.error("Secure AI Call Failed:", error);
     throw error;
   }
@@ -40,18 +53,64 @@ const getLanguageInstruction = (lang: Language) => {
   }
 };
 
+// Maps internal/affiliate game names to the Official Global names for better search results
+const getOfficialSearchTerm = (game: string): string => {
+  const map: Record<string, string> = {
+    [LotteryGameType.US_POWERBALL]: "US Powerball",
+    [LotteryGameType.US_MEGA_MILLIONS]: "US Mega Millions",
+    [LotteryGameType.EURO_MILLIONS]: "EuroMillions",
+    [LotteryGameType.EURO_JACKPOT]: "EuroJackpot",
+    [LotteryGameType.ITALIAN_SUPER]: "SuperEnalotto",
+    [LotteryGameType.UK_LOTTO]: "UK National Lottery",
+    [LotteryGameType.IRISH_LOTTO]: "Irish National Lottery",
+    [LotteryGameType.LA_PRIMITIVA]: "La Primitiva Spain",
+    
+    // Australian mappings
+    [LotteryGameType.AU_SAT_LOTTO]: "Australian Saturday Lotto",
+    [LotteryGameType.AU_MON_WED_LOTTO]: "Australian Monday Wednesday Lotto",
+    [LotteryGameType.AU_OZ_LOTTO]: "Oz Lotto Australia",
+    [LotteryGameType.AU_POWERBALL]: "Australian Powerball",
+    [LotteryGameType.AU_SET_FOR_LIFE]: "Set for Life Australia"
+  };
+  return map[game] || game;
+};
+
 export async function fetchLatestDraws(game: string): Promise<string> {
-  const prompt = `Find the 5 most recent official draw results for the lottery game: ${game}. 
-  Format the output strictly as a list: "Draw [Date/Number]: [Numbers]".
-  Ensure numbers are accurate.
-  Include the official draw number if available.`;
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const searchTerm = getOfficialSearchTerm(game);
+  
+  // Optimized prompt for "Auto-Sync"
+  // Strictly limits the AI to 10 results to prevent long processing times on large history pages
+  const prompt = `
+    Task: Find the official winning numbers for "${searchTerm}".
+    Action: Use Google Search to find the most recent results.
+    
+    CRITICAL LIMIT: Retrieve exactly the last 10 draws up to ${today}. 
+    Do not process more than 10 rows to ensure speed.
+    
+    Required Output Format (Text Only List):
+    "Draw [Date]: [Main Numbers] (Bonus: [Bonus Numbers])"
+    
+    Notes:
+    - If the official site has 20+ results, IGNORE the older ones. Stop after 10.
+    - Strictly formatted list only. No intro/outro text.
+  `;
 
   try {
+    // We are calling the secure backend which invokes ai.models.generateContent
+    // The 'tools' config here enables the Google Search feature
     const response = await callSecureAI('gemini-3-flash-preview', prompt, {
       tools: [{ googleSearch: {} }],
     });
 
-    let text = response.text || "Could not fetch historical data automatically.";
+    let text = response.text || "";
+    
+    if (!text) {
+       if (response.groundingMetadata) {
+         return "Found sources but couldn't extract text. Please verify manually via the 'Verify on Google' button.";
+       }
+       return "Could not retrieve results automatically. Please enter data manually.";
+    }
 
     // Extract grounding sources (URLs)
     const chunks = response.groundingMetadata?.groundingChunks || [];
@@ -61,13 +120,13 @@ export async function fetchLatestDraws(game: string): Promise<string> {
 
     if (sources.length > 0) {
       const uniqueSources = [...new Set(sources)];
-      text += "\n\n--- Source References ---\n" + uniqueSources.join('\n');
+      text += "\n\n--- Verified Sources ---\n" + uniqueSources.slice(0, 3).join('\n');
     }
 
     return text;
   } catch (error) {
     console.error("Error fetching latest draws:", error);
-    return "Error fetching data from web.";
+    throw error;
   }
 }
 
@@ -125,11 +184,17 @@ export async function getAiSuggestions(
   const negativePrompt = disabledTheories.length > 0 
       ? `STRICT CONSTRAINT: You must IGNORE the following theories as they are disabled: ${disabledTheories.join(', ')}. Do not let these methods influence the selection.` 
       : "";
+  
+  const historyContent = history && history.trim().length > 0
+    ? `History: ${history}`
+    : `History: NO HISTORICAL DATA PROVIDED.
+       ACTION: Generate numbers based purely on Theoretical Probability for a ${config.mainCount}/${config.mainRange} game structure. 
+       Ignore "Repeat Numbers Theory" and "Similar Sequence Theory" as there is no history to analyze. Focus on Angel Numbers or Random Distribution.`;
 
   const prompt = `
     You are an expert Lottery Analyst using specific mathematical models.
     Game: ${game} (${config.mainCount} numbers from 1-${config.mainRange}).
-    History: ${history}
+    ${historyContent}
     
     You must strictly apply ONLY the following enabled theories to find the strongest numbers:
     ${theoryContext || "Apply general statistical frequency and distribution analysis only."}
@@ -137,8 +202,7 @@ export async function getAiSuggestions(
     ${negativePrompt}
     ${angelContext}
 
-    Task: Analyze the history and identify 5-10 numbers that best satisfy the criteria of the ENABLED theories listed above.
-    The numbers must be the strongest intersection of these specific methodologies.
+    Task: Analyze the context and identify 5-10 numbers that best satisfy the criteria of the ENABLED theories listed above.
     ${exclusionPrompt}
 
     Return ONLY a JSON object with a property 'numbers' containing an array of integers.
@@ -186,14 +250,14 @@ export async function analyzeAndPredict(
   const actualMainCount = systemNumber || config.mainCount;
   const isSystem = systemNumber !== null && systemNumber > config.mainCount;
   
-  // Detect if this is a "Two Barrel" game (Main numbers + Separate Powerball/Star/MegaBall)
-  // US Powerball, US Mega, Euro Millions, Euro Jackpot, La Primitiva (Reintegro)
+  // Updated separate barrel logic to include AU Powerball
   const isSeparateBarrelGame = 
     game === LotteryGameType.US_POWERBALL || 
-    game === LotteryGameType.US_MEGA_MILLIONS ||
+    game === LotteryGameType.US_MEGA_MILLIONS || 
     game === LotteryGameType.EURO_MILLIONS ||
     game === LotteryGameType.EURO_JACKPOT ||
-    game === LotteryGameType.LA_PRIMITIVA;
+    game === LotteryGameType.LA_PRIMITIVA ||
+    game === LotteryGameType.AU_POWERBALL;
   
   const langPrompt = getLanguageInstruction(language);
 
@@ -241,6 +305,14 @@ export async function analyzeAndPredict(
       `
     : "IMPORTANT: ONLY provide the MAIN set of numbers for each entry. IGNORE supplementary/bonus numbers in the output.";
 
+  const historyContent = history && history.trim().length > 0
+    ? `History: ${history}`
+    : `History: NO HISTORICAL DATA PROVIDED.
+       IMPORTANT: You must perform a "Cold Analysis" based purely on Theoretical Probability and the Game Rules defined above.
+       - Do not reference past draws.
+       - Use Random Distribution logic combined with enabled theories (like Angel Numbers if applicable).
+       - In the 'analysis' section, explicitly state that this is a Theoretical Projection because no history was provided.`;
+
   const systemInstruction = `
     You are an expert Global Lottery Analyst and Mathematician. 
     ${langPrompt}
@@ -272,7 +344,7 @@ export async function analyzeAndPredict(
   `;
 
   const userPrompt = `
-    History: ${history}
+    ${historyContent}
     Entry: ${isSystem ? `System ${systemNumber}` : 'Standard'} (${entryCount} sets)
     Lucky Numbers: ${luckyNumbers.join(', ') || 'None'}
     Unwanted Numbers: ${unwantedNumbers.join(', ') || 'None'}

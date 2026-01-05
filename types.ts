@@ -1,5 +1,12 @@
 
 export enum LotteryGameType {
+  // Australian
+  AU_SAT_LOTTO = 'Saturday Lotto',
+  AU_MON_WED_LOTTO = 'Mon & Wed Lotto',
+  AU_OZ_LOTTO = 'Oz Lotto',
+  AU_POWERBALL = 'Australian Powerball',
+  AU_SET_FOR_LIFE = 'Set for Life',
+
   // USA (The Lottery Office)
   US_POWERBALL = 'USA Power Lotto',
   US_MEGA_MILLIONS = 'USA Mega Lotto',

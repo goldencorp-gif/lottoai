@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { LotteryGameType, PredictionResult, GameConfig } from '../types';
 import { GAME_CONFIGS, LOTTERY_THEORIES, BUY_LINKS } from '../constants';
@@ -93,10 +94,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   };
 
   const handlePredict = async () => {
-    if (!historyText.trim()) {
-      setError("History data required. Please check Step 2.");
-      return;
-    }
+    // Blocking check removed. AI will handle empty history as "Cold Analysis".
     setIsAnalyzing(true);
     setError(null);
     try {
@@ -123,10 +121,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   };
 
   const handleGetSuggestions = async () => {
-    if (!historyText.trim()) {
-      setError("Data feed missing. Please complete Step 2 first.");
-      return;
-    }
+    // Blocking check removed.
     setIsSuggesting(true);
     setError(null);
     try {
@@ -393,10 +388,10 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                     ) : (
                         <button
                             onClick={handleGetSuggestions}
-                            disabled={!historyText.trim()}
-                            className="w-full h-full flex items-center justify-center gap-2 text-[10px] font-bold text-indigo-400/60 hover:text-indigo-400 uppercase tracking-wide transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            // Disabled removed so user can request pure AI suggestions
+                            className="w-full h-full flex items-center justify-center gap-2 text-[10px] font-bold text-indigo-400/60 hover:text-indigo-400 uppercase tracking-wide transition-colors"
                         >
-                            {!historyText.trim() ? "Add Data First" : t('btn.scan')}
+                            {t('btn.scan')}
                         </button>
                     )}
                  </div>
@@ -485,8 +480,8 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                 </div>
                 <p className="text-gray-500 font-bold uppercase tracking-[0.4em] text-xs">{t('res.waiting')}</p>
                 {historyText.length < 50 && (
-                   <p className="text-red-500 text-[10px] font-bold uppercase bg-red-500/10 px-3 py-1 rounded-full animate-pulse">
-                     Data Feed Missing - Configure Step 2
+                   <p className="text-gray-500 text-[10px] font-bold uppercase bg-gray-800 px-3 py-1 rounded-full">
+                     Data Feed Missing - Running in Cold Analysis Mode
                    </p>
                 )}
               </div>
@@ -605,7 +600,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
         <div className="max-w-2xl mx-auto pointer-events-auto">
           <button
             onClick={handlePredict}
-            disabled={isAnalyzing || !historyText.trim()}
+            disabled={isAnalyzing}
             className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-800 disabled:text-gray-600 text-white font-black text-xl rounded-[2.5rem] shadow-[0_0_60px_rgba(79,70,229,0.3)] flex items-center justify-center gap-4 transition-all relative group overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
