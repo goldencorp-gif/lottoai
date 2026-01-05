@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { LotteryGameType, PredictionResult, GameConfig, SavedPrediction } from '../types';
 import { GAME_CONFIGS, LOTTERY_THEORIES, BUY_LINKS } from '../constants';
 import { analyzeAndPredict } from '../services/geminiService';
@@ -8,7 +7,7 @@ import NumberBall from './NumberBall';
 import { 
   Brain, RefreshCw, Send, Target, CheckCircle2,
   Percent, Globe, Sliders, Database, ArrowRight,
-  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin, AlertCircle
+  Dices, ExternalLink, Moon, Bookmark, ShieldCheck, MapPin, AlertCircle, Key
 } from 'lucide-react';
 
 interface PredictorViewProps {
@@ -54,6 +53,14 @@ const PredictorView: React.FC<PredictorViewProps> = ({
   
   const [error, setError] = useState<string | null>(null);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
+  const [hasAiStudio, setHasAiStudio] = useState(false);
+
+  useEffect(() => {
+    // Check if running in an environment with AI Studio key selection
+    if (typeof window !== 'undefined' && window.aistudio) {
+      setHasAiStudio(true);
+    }
+  }, []);
 
   const config = useMemo(() => {
     const base = GAME_CONFIGS[selectedGame];
@@ -83,10 +90,36 @@ const PredictorView: React.FC<PredictorViewProps> = ({
     );
   };
 
+  const handleApiKeySelection = async () => {
+    if (window.aistudio) {
+      try {
+        await window.aistudio.openSelectKey();
+        // Clear error and retry logically (user will click execute again)
+        setError(null);
+      } catch (e) {
+        console.error("Failed to select key", e);
+      }
+    }
+  };
+
   const handlePredict = async () => {
     setIsAnalyzing(true);
     setError(null);
     setSavedStatus(false);
+    
+    // Check for API key in AI Studio environment
+    if (hasAiStudio && window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+            // If no key selected yet, prompt user
+            // We can't automatically prompt inside the click handler easily without breaking flow, 
+            // but we can try opening it if checking returns false.
+            // Best pattern: Try to select if not present.
+            // However, to avoid race conditions described in instructions, we proceed.
+            // If it fails, the error block below will show the button.
+        }
+    }
+
     try {
       const sysNum = selectedSystem === 'standard' ? null : selectedSystem;
       
@@ -294,9 +327,20 @@ const PredictorView: React.FC<PredictorViewProps> = ({
             </div>
 
             {error && (
-               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                  <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
-                  <p className="text-sm text-red-300 font-bold">{error}</p>
+               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex flex-col items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
+                    <p className="text-sm text-red-300 font-bold">{error}</p>
+                  </div>
+                  {/* Show API Key Connect button if applicable */}
+                  {hasAiStudio && (error.includes("API Key") || error.includes("403")) && (
+                    <button 
+                      onClick={handleApiKeySelection}
+                      className="ml-9 px-4 py-2 bg-white text-black rounded-lg text-xs font-black uppercase flex items-center gap-2 hover:bg-gray-200 transition-colors"
+                    >
+                      <Key className="w-3 h-3" /> Connect Google Account (API Key)
+                    </button>
+                  )}
                </div>
             )}
 
