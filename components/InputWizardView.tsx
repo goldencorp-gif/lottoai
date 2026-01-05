@@ -1,11 +1,11 @@
+
 import React, { useState } from 'react';
 import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
 import { 
-  Database, RefreshCw, ArrowLeft, 
-  Trash2, FileText, AlertCircle, Save, Search, Zap, Loader2, Link as LinkIcon
+  RefreshCw, ArrowLeft, 
+  Trash2, Save, Loader2, Link as LinkIcon
 } from 'lucide-react';
-import { GAME_CONFIGS } from '../constants';
 
 interface InputWizardViewProps {
   game: LotteryGameType;
