@@ -1,0 +1,5 @@
+{
+  "name": "Lotto AI",
+  "description": "An advanced global number sequence generator using Gemini AI to analyze historical data through specialized theories for major draws.",
+  "requestFramePermissions": []
+}
