@@ -1,11 +1,9 @@
-
 import React, { useRef, useState } from 'react';
 import { Bookmark, Trash2, Calendar, Hash, Image as ImageIcon, Zap, ExternalLink, Download, Upload, Info, X } from 'lucide-react';
 import { SavedPrediction, LotteryGameType } from '../types';
 import { BUY_LINKS } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import AdUnit from './AdUnit';
-import { AD_SLOTS } from '../constants/ads';
 
 interface VaultViewProps {
   entries: SavedPrediction[];

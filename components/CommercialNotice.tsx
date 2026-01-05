@@ -1,10 +1,8 @@
-
 import React from 'react';
 import { ShieldAlert, ExternalLink, Info, Coffee } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import AdUnit from './AdUnit';
 import { DONATION_LINK } from '../constants';
-import { AD_SLOTS } from '../constants/ads';
 import { settings } from '../siteSettings';
 
 interface CommercialNoticeProps {

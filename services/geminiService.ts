@@ -166,7 +166,7 @@ export async function fetchLatestDraws(game: string): Promise<string> {
 
 export async function generateLuckyImage(numbers: number[], gameName: string): Promise<string | null> {
   const focusNumbers = numbers.slice(0, 5).join(', ');
-  const prompt = `A cinematic, high-quality 3D render of lottery balls with the numbers ${focusNumbers} floating in a mystical, golden glowing void. 
+  const prompt = `A cinematic, high-quality 3D render of lottery balls for the game ${gameName} with the numbers ${focusNumbers} floating in a mystical, golden glowing void. 
   The balls are shiny, polished textures. There is magical gold dust in the air. 
   The lighting is dramatic and luxurious. Photorealistic, 8k resolution, lottery luck theme.`;
 
@@ -198,19 +198,26 @@ export async function getAiSuggestions(
 ): Promise<number[]> {
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
+  const langPrompt = getLanguageInstruction(language);
 
   const exclusionPrompt = unwantedNumbers.length > 0
     ? `CRITICAL EXCLUSION: You MUST NOT include any of these numbers: ${unwantedNumbers.join(', ')}.`
     : "";
+  
+  const angelContext = angelNumberHint
+    ? `CONSIDER ANGEL HINT: "${angelNumberHint}". If this hint suggests numbers, prioritize them.`
+    : "";
 
   const prompt = `
     You are an expert Lottery Analyst.
+    ${langPrompt}
     Game: ${game} (${config.mainCount} balls, 1-${config.mainRange}).
     
     HISTORY DATA:
     ${history || "No history provided."}
 
     Theories: ${enabledTheories.join(', ')}.
+    ${angelContext}
 
     Task: Return 5-10 strong candidate numbers based on the analysis.
     ${exclusionPrompt}
@@ -257,7 +264,6 @@ export async function analyzeAndPredict(
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
   
-  const actualMainCount = systemNumber || config.mainCount;
   const isSystem = systemNumber !== null && systemNumber > config.mainCount;
   
   const isSeparateBarrelGame = 

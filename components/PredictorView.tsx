@@ -9,7 +9,7 @@ import AdUnit from './AdUnit';
 import { 
   Brain, RefreshCw, Send, Star, Target, CheckCircle2,
   TrendingUp, Percent, Ban, Globe, Settings2, Sliders, Database, ArrowRight,
-  Eye, Dices, Info, X, Sparkles, Zap, ExternalLink, Moon, Feather, MapPin
+  Eye, Dices, Info, X, Sparkles, Zap, ExternalLink, Moon, Feather, MapPin, AlertCircle
 } from 'lucide-react';
 
 interface PredictorViewProps {
@@ -112,7 +112,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
       );
       setResults(prediction);
     } catch (err) {
-      setError("Simulation failed.");
+      setError("Simulation failed. Please check your connection or input.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -470,6 +470,13 @@ const PredictorView: React.FC<PredictorViewProps> = ({
                 </div>
               )}
             </div>
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-sm font-bold text-red-400">{error}</span>
+              </div>
+            )}
 
             {!results && !isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-40 text-center space-y-6 opacity-40">

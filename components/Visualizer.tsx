@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Sparkles, BarChart3, Grid, Image as ImageIcon, Loader2, Download } from 'lucide-react';
+import { Sparkles, Grid, Download } from 'lucide-react';
 import { generateLuckyImage } from '../services/geminiService';
 
 interface VisualizerProps {

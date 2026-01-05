@@ -1,8 +1,6 @@
-
 import React, { useEffect, useState } from 'react';
 import { Brain, PlayCircle, BookOpen, Globe, Download, Share2, Coffee } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Language } from '../types';
 import { DONATION_LINK } from '../constants';
 
 type ViewType = 'predictor' | 'simulator' | 'guide';

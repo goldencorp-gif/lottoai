@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Play, RotateCcw, Zap, Tv, Wind } from 'lucide-react';
+import { Play, Zap, Tv, Wind } from 'lucide-react';
 import { LotteryGameType } from '../types';
 import { GAME_CONFIGS } from '../constants';
 import NumberBall from './NumberBall';
@@ -69,7 +68,6 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ selectedGame }) => {
     }
 
     // Animation Sequence
-    let step = 0;
     const totalSteps = config.mainCount + config.bonusCount + (isPowerballGame ? 1 : 0);
     
     const processNextBall = (currentStep: number) => {

@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
 import { 
-  Database, RefreshCw, CheckCircle2, ArrowLeft, 
-  Trash2, FileText, AlertCircle, Save, ExternalLink, Search, Zap, Loader2
+  Database, RefreshCw, ArrowLeft, 
+  Trash2, FileText, AlertCircle, Save, Search, Zap, Loader2
 } from 'lucide-react';
 import { GAME_CONFIGS } from '../constants';
 
