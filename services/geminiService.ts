@@ -3,9 +3,20 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
 import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 
-// Initialize Gemini AI Client directly
-// This uses the API key injected into the client environment (e.g., via Vite/Webpack)
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get the AI client
+// We initialize lazily to prevent "process is not defined" errors during initial page load
+const getAiClient = () => {
+  let apiKey = "";
+  try {
+    // We access process.env.API_KEY safely. 
+    // If a bundler replaces this string, it becomes a string literal.
+    // If not, and process is undefined, the catch block handles the crash.
+    apiKey = process.env.API_KEY || "";
+  } catch (e) {
+    console.warn("Runtime Environment Warning: Could not access process.env.API_KEY. Ensure you have a valid API Key configuration.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 const getLanguageInstruction = (lang: Language) => {
   switch (lang) {
@@ -40,6 +51,7 @@ const getOfficialSearchTerm = (game: string): string => {
 };
 
 export async function fetchLatestDraws(game: string): Promise<string> {
+  const ai = getAiClient();
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const searchTerm = getOfficialSearchTerm(game);
   
@@ -97,6 +109,7 @@ export async function fetchLatestDraws(game: string): Promise<string> {
 }
 
 export async function generateLuckyImage(numbers: number[], gameName: string): Promise<string | null> {
+  const ai = getAiClient();
   const focusNumbers = numbers.slice(0, 5).join(', ');
   const prompt = `A cinematic, high-quality 3D render of lottery balls with the numbers ${focusNumbers} floating in a mystical, golden glowing void. 
   The balls are shiny, polished textures. There is magical gold dust in the air. 
@@ -131,6 +144,7 @@ export async function getAiSuggestions(
   customConfig?: Partial<GameConfig>,
   language: Language = 'en'
 ): Promise<number[]> {
+  const ai = getAiClient();
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
 
@@ -216,6 +230,7 @@ export async function analyzeAndPredict(
   language: Language = 'en'
 ): Promise<PredictionResult> {
   
+  const ai = getAiClient();
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
   
