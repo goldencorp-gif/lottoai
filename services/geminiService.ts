@@ -3,20 +3,66 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
 import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 
-// Helper to safely get the AI client
-// We initialize lazily to prevent "process is not defined" errors during initial page load
-const getAiClient = () => {
+// --- HYBRID API CLIENT ---
+
+// This function determines whether to use the direct SDK (Preview Mode) 
+// or the Netlify Serverless Function (Production Mode).
+async function executeGenAIRequest(model: string, contents: any, config?: any) {
   let apiKey = "";
   try {
-    // We access process.env.API_KEY safely. 
-    // If a bundler replaces this string, it becomes a string literal.
-    // If not, and process is undefined, the catch block handles the crash.
     apiKey = process.env.API_KEY || "";
   } catch (e) {
-    console.warn("Runtime Environment Warning: Could not access process.env.API_KEY. Ensure you have a valid API Key configuration.");
+    // Ignore environment error
   }
-  return new GoogleGenAI({ apiKey });
-};
+
+  // OPTION 1: DIRECT SDK (AI Studio / Local Dev with Key)
+  if (apiKey) {
+    const ai = new GoogleGenAI({ apiKey });
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config
+      });
+      return {
+        text: response.text || "",
+        candidates: response.candidates,
+        groundingMetadata: response.candidates?.[0]?.groundingMetadata
+      };
+    } catch (err) {
+      console.error("Direct SDK Error:", err);
+      throw err;
+    }
+  }
+
+  // OPTION 2: PROXY VIA NETLIFY FUNCTION (Production)
+  // When deployed, the API_KEY is hidden on the server. We call the backend function.
+  try {
+    const response = await fetch('/.netlify/functions/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, contents, config })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server Error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Normalize response to match SDK structure
+    return {
+      text: data.text || "",
+      candidates: data.candidates || [],
+      groundingMetadata: data.groundingMetadata
+    };
+  } catch (err) {
+    console.error("Netlify Function Error:", err);
+    throw new Error("Failed to connect to AI service. Please ensure API Key is configured in Netlify.");
+  }
+}
+
+// --- UTILITIES ---
 
 const getLanguageInstruction = (lang: Language) => {
   switch (lang) {
@@ -28,7 +74,6 @@ const getLanguageInstruction = (lang: Language) => {
   }
 };
 
-// Maps internal/affiliate game names to the Official Global names for better search results
 const getOfficialSearchTerm = (game: string): string => {
   const map: Record<string, string> = {
     [LotteryGameType.US_POWERBALL]: "US Powerball",
@@ -39,8 +84,6 @@ const getOfficialSearchTerm = (game: string): string => {
     [LotteryGameType.UK_LOTTO]: "UK National Lottery",
     [LotteryGameType.IRISH_LOTTO]: "Irish National Lottery",
     [LotteryGameType.LA_PRIMITIVA]: "La Primitiva Spain",
-    
-    // Australian mappings
     [LotteryGameType.AU_SAT_LOTTO]: "Australian Saturday Lotto",
     [LotteryGameType.AU_MON_WED_LOTTO]: "Australian Monday Wednesday Lotto",
     [LotteryGameType.AU_OZ_LOTTO]: "Oz Lotto Australia",
@@ -50,13 +93,12 @@ const getOfficialSearchTerm = (game: string): string => {
   return map[game] || game;
 };
 
+// --- API FUNCTIONS ---
+
 export async function fetchLatestDraws(game: string): Promise<string> {
-  const ai = getAiClient();
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const searchTerm = getOfficialSearchTerm(game);
   
-  // Optimized prompt for "Auto-Sync"
-  // Strictly limits the AI to 10 results to prevent long processing times
   const prompt = `
     Task: Find the official winning numbers for "${searchTerm}".
     Action: Use Google Search to find the most recent results.
@@ -73,25 +115,21 @@ export async function fetchLatestDraws(game: string): Promise<string> {
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
+    const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
+      tools: [{ googleSearch: {} }],
     });
 
     let text = response.text || "";
     
     if (!text) {
-       if (response.candidates?.[0]?.groundingMetadata) {
+       if (response.groundingMetadata) {
          return "Found sources but couldn't extract text. Please verify manually via the 'Verify on Google' button.";
        }
        return "Could not retrieve results automatically. Please enter data manually.";
     }
 
     // Extract grounding sources (URLs)
-    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const chunks = response.groundingMetadata?.groundingChunks || [];
     const sources = chunks
       .map((c: any) => c.web?.uri)
       .filter((uri: string) => uri);
@@ -109,18 +147,14 @@ export async function fetchLatestDraws(game: string): Promise<string> {
 }
 
 export async function generateLuckyImage(numbers: number[], gameName: string): Promise<string | null> {
-  const ai = getAiClient();
   const focusNumbers = numbers.slice(0, 5).join(', ');
   const prompt = `A cinematic, high-quality 3D render of lottery balls with the numbers ${focusNumbers} floating in a mystical, golden glowing void. 
   The balls are shiny, polished textures. There is magical gold dust in the air. 
   The lighting is dramatic and luxurious. Photorealistic, 8k resolution, lottery luck theme.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: prompt }]
-      }
+    const response = await executeGenAIRequest('gemini-2.5-flash-image', {
+       parts: [{ text: prompt }]
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
@@ -144,7 +178,6 @@ export async function getAiSuggestions(
   customConfig?: Partial<GameConfig>,
   language: Language = 'en'
 ): Promise<number[]> {
-  const ai = getAiClient();
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
 
@@ -191,22 +224,18 @@ export async function getAiSuggestions(
   `;
 
   try {
-     const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              numbers: {
-                type: Type.ARRAY,
-                items: { type: Type.NUMBER }
-              }
+     const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            numbers: {
+              type: Type.ARRAY,
+              items: { type: Type.NUMBER }
             }
           }
         }
-    });
+     });
     
     const json = JSON.parse(response.text || "{}");
     return json.numbers || [];
@@ -230,14 +259,12 @@ export async function analyzeAndPredict(
   language: Language = 'en'
 ): Promise<PredictionResult> {
   
-  const ai = getAiClient();
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
   
   const actualMainCount = systemNumber || config.mainCount;
   const isSystem = systemNumber !== null && systemNumber > config.mainCount;
   
-  // Updated separate barrel logic to include AU Powerball
   const isSeparateBarrelGame = 
     game === LotteryGameType.US_POWERBALL || 
     game === LotteryGameType.US_MEGA_MILLIONS || 
@@ -380,25 +407,21 @@ export async function analyzeAndPredict(
   }
 
   try {
-    const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: schemaProperties,
-            required: ["entries", "analysis", "theoriesApplied", "strategicWeight", "suggestedNumbers", ...(isSeparateBarrelGame ? ["powerballs"] : [])]
-          }
-        }
+    const response = await executeGenAIRequest('gemini-3-flash-preview', userPrompt, {
+       systemInstruction,
+       responseMimeType: "application/json",
+       responseSchema: {
+         type: Type.OBJECT,
+         properties: schemaProperties,
+         required: ["entries", "analysis", "theoriesApplied", "strategicWeight", "suggestedNumbers", ...(isSeparateBarrelGame ? ["powerballs"] : [])]
+       }
     });
 
     const result = JSON.parse(response.text || "{}");
     return {
       ...result,
       systemLabel: isSystem ? `System ${systemNumber}` : 'Standard',
-      groundingSources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
+      groundingSources: response.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
         title: chunk.web?.title || "Market Data",
         uri: chunk.web?.uri || ""
       })).filter((s: any) => s.uri)
