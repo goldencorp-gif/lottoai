@@ -6,12 +6,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Robust definition of process.env to support both build-time variables and runtime injection.
-    // If API_KEY is present at build time, we use it. 
-    // Otherwise, we map process.env to globalThis.process.env (if available) or an empty object.
-    // This allows tools like AI Studio to inject the key at runtime without Vite overwriting it with "".
+    // If API_KEY is present at build time (e.g. Vercel env vars), inject it.
+    // Otherwise, define process.env as empty object to prevent "process is not defined" errors.
+    // Runtime injection (e.g. AI Studio) is handled in the service layer via window.process.
     'process.env': process.env.API_KEY 
       ? { API_KEY: process.env.API_KEY } 
-      : 'globalThis.process?.env || {}'
+      : {}
   },
 });

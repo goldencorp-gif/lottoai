@@ -8,9 +8,14 @@ import { GAME_CONFIGS } from "../constants";
  * Refactored to follow @google/genai guidelines strictly.
  */
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
-  // Use process.env.API_KEY as per guidelines.
-  // Due to Vite config updates, this now supports runtime injection (e.g. AI Studio).
-  const apiKey = process.env.API_KEY;
+  // Check for API key in multiple locations:
+  // 1. process.env.API_KEY (Injected by Vite at build time)
+  // 2. window.process.env.API_KEY (Injected by AI Studio at runtime)
+  // 3. window.aistudio (Implicit context)
+  
+  // Note: We cast window to any to avoid TypeScript errors with global process object
+  const runtimeKey = (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY);
+  const apiKey = process.env.API_KEY || runtimeKey;
 
   if (apiKey) {
     // Create a new instance for each request to ensure up-to-date config/key
@@ -32,7 +37,7 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       console.warn("Direct SDK failed, attempting backend proxy...", err);
     }
   } else {
-    console.debug("No Client-Side API Key found (process.env.API_KEY is empty). Falling back to proxy.");
+    console.debug("No Client-Side API Key found. Falling back to proxy.");
   }
 
   // Fallback to proxy if local key is not provided or fails
@@ -236,7 +241,12 @@ export async function generateLuckyImage(numbers: number[], gameName: string): P
   Hyper-realistic, gold and indigo tones, sparkles and light rays.`;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const runtimeKey = (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY);
+    const apiKey = process.env.API_KEY || runtimeKey;
+    
+    if (!apiKey) return null;
+
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts: [{ text: prompt }] },
