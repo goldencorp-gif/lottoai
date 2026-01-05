@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { LotteryGameType, PredictionResult, GameConfig, Language } from "../types";
 import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
@@ -10,6 +9,8 @@ import { GAME_CONFIGS, LOTTERY_THEORIES } from "../constants";
 async function executeGenAIRequest(model: string, contents: any, config?: any) {
   let apiKey = "";
   try {
+    // In Vite/React, env vars often need specific prefixes or config.
+    // We check standard process.env just in case, but usually this is empty in browser.
     apiKey = process.env.API_KEY || "";
   } catch (e) {
     // Ignore environment error
@@ -38,17 +39,35 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
   // OPTION 2: PROXY VIA NETLIFY FUNCTION (Production)
   // When deployed, the API_KEY is hidden on the server. We call the backend function.
   try {
+    // We use a relative path. Netlify redirects /.netlify/functions/ to the function.
     const response = await fetch('/.netlify/functions/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, contents, config })
     });
 
-    if (!response.ok) {
-      throw new Error(`Server Error: ${response.statusText}`);
+    if (response.status === 404) {
+      console.error("Netlify Function 404: Ensure netlify.toml exists and functions are built.");
+      throw new Error("Backend connection failed (404). Please check site deployment configuration.");
     }
 
-    const data = await response.json();
+    const responseText = await response.text();
+    
+    if (!response.ok) {
+      let errorMessage = `Server Error: ${response.status} ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(responseText);
+        if (errorJson.error) {
+          errorMessage = errorJson.error;
+        }
+      } catch (e) {
+        // If not JSON, use the raw text if available
+        if (responseText) errorMessage = `Server Error: ${responseText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = JSON.parse(responseText);
     
     // Normalize response to match SDK structure
     return {
@@ -56,9 +75,10 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       candidates: data.candidates || [],
       groundingMetadata: data.groundingMetadata
     };
-  } catch (err) {
+  } catch (err: any) {
     console.error("Netlify Function Error:", err);
-    throw new Error("Failed to connect to AI service. Please ensure API Key is configured in Netlify.");
+    // Pass through the specific error message from the server if possible
+    throw new Error(err.message || "Failed to connect to AI service.");
   }
 }
 
@@ -201,7 +221,7 @@ export async function getAiSuggestions(
       : "";
   
   const historyContent = history && history.trim().length > 0
-    ? `History: ${history}`
+    ? `History: ${history}\n\nIMPORTANT: Analyze this historical data to identify frequency patterns. Explicitly favor 'Hot' numbers (frequent in recent draws) and avoid 'Cold' numbers unless the 'Landing Areas Theory' suggests a correction is due.`
     : `History: NO HISTORICAL DATA PROVIDED.
        ACTION: Generate numbers based purely on Theoretical Probability for a ${config.mainCount}/${config.mainRange} game structure. 
        Ignore "Repeat Numbers Theory" and "Similar Sequence Theory" as there is no history to analyze. Focus on Angel Numbers or Random Distribution.`;
@@ -270,6 +290,7 @@ export async function analyzeAndPredict(
     game === LotteryGameType.US_MEGA_MILLIONS || 
     game === LotteryGameType.EURO_MILLIONS || 
     game === LotteryGameType.EURO_JACKPOT || 
+    game === LotteryGameType.ITALIAN_SUPER ||
     game === LotteryGameType.LA_PRIMITIVA || 
     game === LotteryGameType.AU_POWERBALL;
   
@@ -320,7 +341,7 @@ export async function analyzeAndPredict(
     : "IMPORTANT: ONLY provide the MAIN set of numbers for each entry. IGNORE supplementary/bonus numbers in the output.";
 
   const historyContent = history && history.trim().length > 0
-    ? `History: ${history}`
+    ? `History: ${history}\n\nIMPORTANT: Analyze this historical data to identify frequency patterns. Explicitly favor 'Hot' numbers (frequent in recent draws) and avoid 'Cold' numbers unless the 'Landing Areas Theory' suggests a correction is due.`
     : `History: NO HISTORICAL DATA PROVIDED.
        IMPORTANT: You must perform a "Cold Analysis" based purely on Theoretical Probability and the Game Rules defined above.
        - Do not reference past draws.
@@ -346,6 +367,8 @@ export async function analyzeAndPredict(
 
     ${exclusionPrompt}
     ${coveragePrompt}
+    
+    IF History is provided, you MUST analyze it to determine the probabilities based on the enabled theories (e.g. Repeat Numbers).
 
     Return your response as a JSON object with:
     - entries: An array of ${entryCount} arrays. Each inner array must have exactly ${actualMainCount} main numbers (sorted).

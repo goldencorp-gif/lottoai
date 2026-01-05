@@ -22,7 +22,7 @@ export default async (request: Request) => {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
       console.error("API_KEY is missing in Netlify environment variables");
-      return new Response(JSON.stringify({ error: "Server Configuration Error: API Key Missing" }), {
+      return new Response(JSON.stringify({ error: "Server Configuration Error: API_KEY is missing in Netlify Environment Variables. Please add it in Site Settings." }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
       });
@@ -34,7 +34,6 @@ export default async (request: Request) => {
     const ai = new GoogleGenAI({ apiKey });
     
     // Safety settings to prevent blocking legitimate lottery data
-    // We strictly map the requested config or default to something safe
     const finalConfig = {
       ...config,
       safetySettings: [
