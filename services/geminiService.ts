@@ -39,7 +39,15 @@ async function executeGenAIRequest(model: string, contents: any, config?: any) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, contents, config })
     });
+    
+    // Parse response body
     const data = await response.json();
+
+    // Check for HTTP errors or API errors returned in JSON
+    if (!response.ok || data.error) {
+        throw new Error(data.error || data.details || `Server Error: ${response.status}`);
+    }
+
     return {
       text: data.text || "",
       candidates: data.candidates || [],
@@ -80,6 +88,10 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
       tools: [{ googleSearch: {} }],
     });
 
+    if (!response.text) {
+        throw new Error("AI returned empty response. Check API configuration.");
+    }
+
     const sources: { title: string; uri: string }[] = [];
     // Extract website URLs from grounding chunks as per guidelines.
     const chunks = response.groundingMetadata?.groundingChunks || [];
@@ -90,7 +102,7 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
     });
 
     return {
-      data: response.text || "No results found.",
+      data: response.text,
       sources: sources
     };
   } catch (error) {
