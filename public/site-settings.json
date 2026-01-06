@@ -26,26 +26,26 @@
   "customAds": {
     "sidebar": {
       "enabled": true,
-      "image": "https://placehold.co/300x250/1e1b4b/indigo?text=Visit+My+Website",
-      "url": "https://example.com/my-website",
+      "image": "/ad-square.png",
+      "url": "https://your-website.com",
       "alt": "Check out our partner"
     },
     "mainResult": {
       "enabled": true,
-      "image": "https://placehold.co/728x90/1e1b4b/indigo?text=Exclusive+Offer+-+Click+Here",
-      "url": "https://example.com/special-offer",
+      "image": "/ad-banner.png",
+      "url": "https://your-website.com",
       "alt": "Play Now"
     },
     "footer": {
       "enabled": true,
-      "image": "https://placehold.co/728x90/1e1b4b/indigo?text=Advertise+With+Us",
-      "url": "https://example.com/contact",
+      "image": "/ad-banner.png",
+      "url": "https://your-website.com",
       "alt": "Support"
     },
     "vault": {
       "enabled": true,
-      "image": "https://placehold.co/300x250/1e1b4b/indigo?text=Premium+Services",
-      "url": "https://example.com/premium",
+      "image": "/ad-square.png",
+      "url": "https://your-website.com",
       "alt": "Premium"
     }
   }
