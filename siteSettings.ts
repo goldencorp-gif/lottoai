@@ -26,27 +26,27 @@ export const settings = {
   },
   customAds: {
     sidebar: {
-      enabled: false,
-      image: "https://placehold.co/300x250/1e1b4b/indigo?text=Your+Ad+Here",
-      url: "https://www.ozlotteries.com",
-      alt: "Special Offer"
+      enabled: true,
+      image: "https://placehold.co/300x250/1e1b4b/indigo?text=Visit+My+Website",
+      url: "https://example.com/my-website",
+      alt: "Check out our partner"
     },
     mainResult: {
-      enabled: false,
-      image: "https://placehold.co/728x90/1e1b4b/indigo?text=Play+Now+Banner",
-      url: "https://www.ozlotteries.com",
+      enabled: true,
+      image: "https://placehold.co/728x90/1e1b4b/indigo?text=Exclusive+Offer+-+Click+Here",
+      url: "https://example.com/special-offer",
       alt: "Play Now"
     },
     footer: {
-      enabled: false,
-      image: "https://placehold.co/728x90/1e1b4b/indigo?text=Support+Us",
-      url: "https://ko-fi.com",
+      enabled: true,
+      image: "https://placehold.co/728x90/1e1b4b/indigo?text=Advertise+With+Us",
+      url: "https://example.com/contact",
       alt: "Support"
     },
     vault: {
-      enabled: false,
-      image: "https://placehold.co/300x250/1e1b4b/indigo?text=Premium+Feature",
-      url: "#",
+      enabled: true,
+      image: "https://placehold.co/300x250/1e1b4b/indigo?text=Premium+Services",
+      url: "https://example.com/premium",
       alt: "Premium"
     }
   }
