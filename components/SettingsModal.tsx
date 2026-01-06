@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Key, Trash2, ExternalLink, ShieldCheck } from 'lucide-react';
+import { X, Key, Trash2, ExternalLink, ShieldCheck, Lock } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface SettingsModalProps {
@@ -105,16 +105,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 </div>
             </div>
 
+            {/* Privacy Declaration Box */}
+            <div className="p-4 bg-green-900/10 border border-green-500/20 rounded-xl flex items-start gap-3">
+                <div className="p-1.5 bg-green-500/20 rounded-lg shrink-0">
+                    <Lock className="w-4 h-4 text-green-400" />
+                </div>
+                <div className="space-y-1">
+                    <h4 className="text-[10px] font-black text-green-400 uppercase tracking-wider">{t('settings.privacyTitle')}</h4>
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                        {t('settings.privacyDesc')}
+                    </p>
+                </div>
+            </div>
+
             <button 
                 onClick={handleSave} 
                 className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${saved ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'}`}
             >
                 {saved ? t('settings.saved') : t('settings.save')}
             </button>
-            
-            <p className="text-[9px] text-gray-600 text-center max-w-xs mx-auto">
-                {t('settings.note')}
-            </p>
         </div>
       </div>
     </div>

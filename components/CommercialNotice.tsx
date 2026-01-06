@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { ShieldAlert, ExternalLink, Info, Coffee } from 'lucide-react';
+import { ShieldAlert, ExternalLink, Info, Coffee, Database } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import AdUnit from './AdUnit';
 import { DONATION_LINK } from '../constants';
@@ -46,6 +47,9 @@ const CommercialNotice: React.FC<CommercialNoticeProps> = ({ onOpenPrivacy, onOp
           </div>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-[10px] font-bold text-blue-400 uppercase tracking-widest">
             <Info className="w-3 h-3" /> Independent Service
+          </div>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full text-[10px] font-bold text-green-400 uppercase tracking-widest">
+            <Database className="w-3 h-3" /> {t('notice.privacy')}
           </div>
         </div>
         
