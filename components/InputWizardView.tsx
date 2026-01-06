@@ -41,15 +41,16 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
     setError(null);
     try {
       const result = await fetchLatestDraws(game);
-      setLocalData(result.data);
-      setSources(result.sources);
-    } catch (e: any) {
-      if (e.message === "MISSING_SERVER_KEY" || e.message.includes("Invalid Manual API Key")) {
-        setShowDevSettings(true);
-        setError("API Key Error: Please configure a valid Gemini API Key below.");
+      if (result.data) {
+        setLocalData(result.data);
+        setSources(result.sources);
       } else {
-        setError(e.message || "Failed to fetch data. Verify network connectivity.");
+        // Soft failure - No data returned but no hard crash
+        setError("Live Sync unavailable right now. Using offline mode.");
       }
+    } catch (e: any) {
+        // Fallback already handled in service, but just in case
+        setError("Network unavailable. Please input data manually or use Demo Data.");
     } finally {
       setIsLoading(false);
     }
@@ -106,19 +107,13 @@ Date: 2023-10-23, Main: 10 15 22 38 42, Bonus: 1
                 Sync Results
               </button>
               
-              {error && (
-                 <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] text-red-400 font-bold flex flex-col gap-2">
-                    <span>{error}</span>
-                    {error.includes("Key") && (
-                        <button onClick={() => setShowDevSettings(true)} className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 rounded text-red-300 w-full">
-                           Update API Key
-                        </button>
-                    )}
-                    {error.includes("Quota") && (
-                        <button onClick={handleLoadDemoData} className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded text-white w-full flex items-center justify-center gap-2">
-                           <FileText className="w-3 h-3"/> Use Demo Data
-                        </button>
-                    )}
+              {/* Force show Demo Data button if data is empty, or if error */}
+              {(error || (!isLoading && !localData)) && (
+                 <div className="mt-4 pt-4 border-t border-gray-800 animate-in fade-in">
+                    <p className="text-[10px] text-gray-500 mb-2">Sync unavailable or quota limit reached? Use sample data to proceed.</p>
+                    <button onClick={handleLoadDemoData} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-xs font-bold uppercase flex items-center justify-center gap-2 transition-colors">
+                       <FileText className="w-4 h-4"/> Use Demo Data
+                    </button>
                  </div>
               )}
             </div>
@@ -146,7 +141,7 @@ Date: 2023-10-23, Main: 10 15 22 38 42, Bonus: 1
                 </button>
              </div>
              <div className="bg-black/40 border border-gray-800 rounded-3xl p-1 flex-grow">
-                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder="Paste results or use Sync..." className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
+                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder="Paste results or use Demo Data..." className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
              </div>
           </div>
         </div>
