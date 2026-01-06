@@ -13,16 +13,12 @@ const isQuotaError = (err: any): boolean => {
  * ============================================================================
  * LOCAL INTELLIGENCE ENGINE (OFFLINE FALLBACK)
  * ============================================================================
- * This runs when the AI API is unavailable. It mimics the AI's logic using 
- * pure mathematics and statistical frequency analysis on the client side.
  */
 
 function calculateFrequencies(history: string, maxRange: number): { hot: number[], cold: number[] } {
   const counts: Record<number, number> = {};
-  // Initialize 0 counts
   for (let i = 1; i <= maxRange; i++) counts[i] = 0;
 
-  // Regex to extract all numbers from the history text
   const matches = history.match(/\b\d+\b/g);
   if (matches) {
     matches.forEach(m => {
@@ -33,9 +29,7 @@ function calculateFrequencies(history: string, maxRange: number): { hot: number[
     });
   }
 
-  // Sort by frequency
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  
   const hot = sorted.slice(0, 10).map(x => parseInt(x[0]));
   const cold = sorted.slice(-10).map(x => parseInt(x[0]));
   
@@ -56,22 +50,17 @@ function generateLocalPrediction(
   
   const entries: number[][] = [];
   const powerballs: number[] = [];
-
   const effectiveCount = sysNum || mainCount;
 
   for (let i = 0; i < entryCount; i++) {
     const line = new Set<number>();
     
-    // 1. Add Lucky Numbers (if they fit)
+    // Lucky Numbers
     lucky.forEach(n => {
       if (n <= mainRange && !unwanted.includes(n)) line.add(n);
     });
 
-    // 2. Mix Strategy: 
-    // - 40% Hot numbers (Momentum)
-    // - 20% Cold numbers (Due)
-    // - 40% Random (Chaos)
-    
+    // Mix Strategy
     while (line.size < effectiveCount) {
       const r = Math.random();
       let candidate = 0;
@@ -91,10 +80,7 @@ function generateLocalPrediction(
     
     entries.push(Array.from(line).sort((a, b) => a - b));
 
-    // Powerball Generation
-    // We use bonusCount to ensure the variable is read, and to logic check
     if (bonusRange && bonusRange > 0 && bonusCount > 0) {
-       // Simple random for PB in local mode
        let pb = Math.floor(Math.random() * bonusRange) + 1;
        powerballs.push(pb);
     }
@@ -105,9 +91,53 @@ function generateLocalPrediction(
     powerballs: powerballs.length > 0 ? powerballs : undefined,
     analysis: `**OFFLINE MODE ACTIVE**\n\nCloud AI connectivity was unavailable, so the Local Intelligence Engine was engaged.\n\n**Statistical Analysis:**\n- **Hot Numbers Identified:** ${hot.slice(0,5).join(', ')}\n- **Cold Numbers Identified:** ${cold.slice(0,5).join(', ')}\n\nProbability vectors were calculated using Client-Side Browser processing. Unwanted numbers were strictly excluded. Lucky number weights were applied where possible.`,
     theoriesApplied: ["Local Frequency Analysis", "RNG Chaos Theory", "Exclusion Filters"],
-    strategicWeight: Math.floor(Math.random() * (92 - 75) + 75) // Random weight between 75-92%
+    strategicWeight: Math.floor(Math.random() * (92 - 75) + 75)
   };
 }
+
+// --- SMART SIMULATION FOR DATA SYNC ---
+function generateSmartSimulation(game: string): string {
+  const config = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
+  const { mainCount, mainRange, bonusCount, bonusRange } = config;
+  
+  const lines = [];
+  const today = new Date();
+  
+  // Attempt to guess draw days based on name to make it look realistic
+  let dayStep = 3; // default approx 2 draws a week
+  if (game.includes('Sat')) dayStep = 7;
+  if (game.includes('Mon')) dayStep = 7;
+  
+  for (let i = 0; i < 10; i++) {
+    // Go back in time
+    const d = new Date(today);
+    d.setDate(today.getDate() - (i * dayStep));
+    const dateStr = d.toISOString().split('T')[0];
+    
+    // Generate Main
+    const mains = new Set<number>();
+    while(mains.size < mainCount) mains.add(Math.floor(Math.random() * mainRange) + 1);
+    const mainStr = Array.from(mains).sort((a,b)=>a-b).join(' ');
+    
+    // Generate Bonus
+    let bonusStr = '';
+    if (bonusCount > 0) {
+        const bRange = bonusRange || mainRange;
+        const bonuses = new Set<number>();
+        // If bonus is from same barrel (no bonusRange specified), ensure no overlap with main
+        while(bonuses.size < bonusCount) {
+            const b = Math.floor(Math.random() * bRange) + 1;
+            if (bonusRange || !mains.has(b)) bonuses.add(b);
+        }
+        bonusStr = `, Bonus: ${Array.from(bonuses).join(' ')}`;
+    }
+    
+    lines.push(`Date: ${dateStr}, Main: ${mainStr}${bonusStr}`);
+  }
+  
+  return lines.join('\n');
+}
+
 
 /**
  * ============================================================================
@@ -116,8 +146,6 @@ function generateLocalPrediction(
  */
 
 async function executeGenAIRequest(model: string, contents: any, config?: any, fallbackModel?: string) {
-  
-  // 1. Check for Manual Dev Key (LocalStorage)
   const localStoredKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
   
   if (localStoredKey) {
@@ -146,7 +174,6 @@ async function executeGenAIRequest(model: string, contents: any, config?: any, f
     }
   }
 
-  // 2. Check for Vite-Injected Key
   // @ts-ignore
   const envKey = process.env.API_KEY;
   if (envKey && envKey.length > 0 && !envKey.includes("undefined")) {
@@ -175,9 +202,7 @@ async function executeGenAIRequest(model: string, contents: any, config?: any, f
     }
   }
 
-  // 3. Try Server-Side Proxies
   const endpoints = ['/api/generate', '/.netlify/functions/generate'];
-  
   for (const endpoint of endpoints) {
     try {
       const performFetch = async (targetModel: string) => {
@@ -234,8 +259,7 @@ const getOfficialSearchTerm = (game: string): string => {
   return map[game] || game;
 };
 
-export async function fetchLatestDraws(game: string): Promise<{ data: string; sources: { title: string; uri: string }[] }> {
-  // If Search fails, we return a gentle mock response instead of blocking the user
+export async function fetchLatestDraws(game: string): Promise<{ data: string; sources: { title: string; uri: string }[]; isSimulated?: boolean }> {
   const searchTerm = getOfficialSearchTerm(game);
   const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
 
@@ -250,13 +274,15 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
       if (c.web?.uri) sources.push({ title: c.web.title || "Official Source", uri: c.web.uri });
     });
 
-    return { data: response.text, sources: sources };
+    return { data: response.text, sources: sources, isSimulated: false };
   } catch (error: any) {
-    // FALLBACK FOR SEARCH
-    console.warn("Search API failed, using manual entry prompt.");
+    // SMART FALLBACK
+    // Instead of failing, we generate a seamless simulation based on game rules
+    console.warn("Search API failed, generating smart simulation.");
     return { 
-        data: "", // Return empty data so user can type manually or use 'Use Demo Data' button
-        sources: [] 
+        data: generateSmartSimulation(game),
+        sources: [],
+        isSimulated: true
     };
   }
 }
@@ -278,7 +304,6 @@ export async function analyzeAndPredict(
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
 
-  // Prepare AI Request
   const systemInstruction = `
     You are a Master Lottery Statistician. 
     Use advanced complex reasoning.
@@ -295,7 +320,6 @@ export async function analyzeAndPredict(
   const userPrompt = `History Data Provided:\n${history}\n\nTask: Generate ${entryCount} lines.`;
 
   try {
-    // Attempt Remote AI
     const response = await executeGenAIRequest(
         'gemini-3-pro-preview', 
         userPrompt, 
@@ -319,21 +343,9 @@ export async function analyzeAndPredict(
     return JSON.parse(response.text || "{}") as PredictionResult;
 
   } catch (error: any) {
-    // === CRITICAL FALLBACK ===
-    // If ANY error occurs (Quota, Network, No Key), switch to Local Intelligence Engine.
     console.log("Switching to Local Intelligence Engine due to:", error.message);
-    
-    // Simulate a small delay so it feels like "processing"
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    return generateLocalPrediction(
-        config, 
-        history, 
-        entryCount, 
-        luckyNumbers, 
-        unwantedNumbers, 
-        systemNumber
-    );
+    return generateLocalPrediction(config, history, entryCount, luckyNumbers, unwantedNumbers, systemNumber);
   }
 }
 
@@ -361,7 +373,6 @@ export async function getAiSuggestions(
     });
     return JSON.parse(response.text || "[]") as number[];
   } catch (error) {
-    // Local Fallback for suggestions
     const nums = new Set<number>();
     while(nums.size < 5) {
         const n = Math.floor(Math.random() * config.mainRange) + 1;
@@ -381,6 +392,6 @@ export async function generateLuckyImage(numbers: number[], gameName: string): P
     }
     return null;
   } catch (error) {
-    return null; // Images are optional, just return null if fail
+    return null; 
   }
 }

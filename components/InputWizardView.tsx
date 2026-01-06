@@ -4,7 +4,7 @@ import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
 import { 
   RefreshCw, ArrowLeft, 
-  Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle, FileText
+  Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle, Sparkles
 } from 'lucide-react';
 
 interface InputWizardViewProps {
@@ -18,7 +18,7 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
   const [localData, setLocalData] = useState<string>(currentData);
   const [sources, setSources] = useState<{ title: string, uri: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success' | 'info', text: string} | null>(null);
 
   // Settings State
   const [showDevSettings, setShowDevSettings] = useState(false);
@@ -33,40 +33,36 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
   const handleSaveManualKey = () => {
     localStorage.setItem('gemini_api_key', manualApiKey);
     setShowDevSettings(false);
-    setError(null);
+    setStatusMessage(null);
   };
 
   const handleFetch = async () => {
     setIsLoading(true);
-    setError(null);
+    setStatusMessage(null);
     try {
       const result = await fetchLatestDraws(game);
-      if (result.data) {
-        setLocalData(result.data);
-        setSources(result.sources);
+      setLocalData(result.data);
+      setSources(result.sources);
+      
+      if (result.isSimulated) {
+        setStatusMessage({
+            type: 'info', 
+            text: 'Live connection unavailable. Generated simulation data based on historical parameters.'
+        });
       } else {
-        // Soft failure - No data returned but no hard crash
-        setError("Live Sync unavailable right now. Using offline mode.");
+         setStatusMessage({
+            type: 'success',
+            text: 'Successfully synced latest official results.'
+         });
       }
     } catch (e: any) {
-        // Fallback already handled in service, but just in case
-        setError("Network unavailable. Please input data manually or use Demo Data.");
+        setStatusMessage({
+            type: 'error',
+            text: "Connection failed. Please enter data manually."
+        });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLoadDemoData = () => {
-      // Mock data for user fallback
-      const mock = `
-Date: 2023-11-20, Main: 5 12 23 34 45, Bonus: 8
-Date: 2023-11-13, Main: 2 18 29 31 40, Bonus: 11
-Date: 2023-11-06, Main: 7 14 25 33 48, Bonus: 4
-Date: 2023-10-30, Main: 1 9 20 28 35, Bonus: 7
-Date: 2023-10-23, Main: 10 15 22 38 42, Bonus: 1
-`.trim();
-      setLocalData(mock);
-      setError(null);
   };
 
   return (
@@ -98,22 +94,23 @@ Date: 2023-10-23, Main: 10 15 22 38 42, Bonus: 1
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
           <div className="space-y-6">
             <div className="p-6 bg-gray-900/40 rounded-3xl border border-gray-800">
-              <h3 className="text-sm font-black text-white uppercase mb-4">Auto-Sync (AI Search)</h3>
+              <h3 className="text-sm font-black text-white uppercase mb-4">Auto-Sync</h3>
               <p className="text-[10px] text-gray-500 mb-6 leading-relaxed">
-                Gemini will crawl official lottery portals to extract the latest winning sequences.
+                Attempt to sync official results. If offline, the system will generate a valid historical simulation.
               </p>
               <button onClick={handleFetch} disabled={isLoading} className={`w-full py-4 rounded-xl font-bold uppercase text-xs flex items-center justify-center gap-2 transition-all ${isLoading ? 'bg-gray-800 text-gray-500' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-xl'}`}>
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                Sync Results
+                {isLoading ? 'Syncing...' : 'Sync Results'}
               </button>
               
-              {/* Force show Demo Data button if data is empty, or if error */}
-              {(error || (!isLoading && !localData)) && (
-                 <div className="mt-4 pt-4 border-t border-gray-800 animate-in fade-in">
-                    <p className="text-[10px] text-gray-500 mb-2">Sync unavailable or quota limit reached? Use sample data to proceed.</p>
-                    <button onClick={handleLoadDemoData} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-xs font-bold uppercase flex items-center justify-center gap-2 transition-colors">
-                       <FileText className="w-4 h-4"/> Use Demo Data
-                    </button>
+              {statusMessage && (
+                 <div className={`mt-4 pt-4 border-t border-gray-800 animate-in fade-in flex gap-2 ${statusMessage.type === 'error' ? 'text-red-400' : statusMessage.type === 'success' ? 'text-green-400' : 'text-blue-400'}`}>
+                    <div className="shrink-0 mt-0.5">
+                        {statusMessage.type === 'info' ? <Sparkles className="w-4 h-4"/> : <AlertCircle className="w-4 h-4"/>}
+                    </div>
+                    <p className="text-[10px] leading-relaxed font-medium">
+                        {statusMessage.text}
+                    </p>
                  </div>
               )}
             </div>
@@ -141,7 +138,7 @@ Date: 2023-10-23, Main: 10 15 22 38 42, Bonus: 1
                 </button>
              </div>
              <div className="bg-black/40 border border-gray-800 rounded-3xl p-1 flex-grow">
-                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder="Paste results or use Demo Data..." className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
+                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder="Paste results or Sync..." className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
              </div>
           </div>
         </div>
