@@ -7,6 +7,9 @@ export const settings = {
   },
   affiliates: {
     partnerBaseUrl: "https://www.lotteryoffice.com.au",
+    // INSTRUCTION: When you get your Affiliate ID in 2 days, paste the parameter here.
+    // Example format: "?aff_id=12345" or "?marketing_source=YOUR_ID"
+    // Leave empty "" until then.
     trackingParam: "",
     useAffiliateLinks: true
   },
