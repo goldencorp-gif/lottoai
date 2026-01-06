@@ -92,7 +92,8 @@ function generateLocalPrediction(
     entries.push(Array.from(line).sort((a, b) => a - b));
 
     // Powerball Generation
-    if (bonusRange && bonusRange > 0) {
+    // We use bonusCount to ensure the variable is read, and to logic check
+    if (bonusRange && bonusRange > 0 && bonusCount > 0) {
        // Simple random for PB in local mode
        let pb = Math.floor(Math.random() * bonusRange) + 1;
        powerballs.push(pb);
@@ -284,6 +285,8 @@ export async function analyzeAndPredict(
     ${getLanguageInstruction(language)}
     GAME: ${game}. RULES: ${config.mainCount} balls (1-${config.mainRange}).
     ANALYSIS: Hot/Cold, Sequential Gap, ${enabledTheories.join(', ')}.
+    STRATEGY: ${includeCoverageStrategy ? "Maximize Coverage" : "Standard"}.
+    ANGEL CONTEXT: ${angelNumberHint || "None"}.
     EXCLUDE: ${unwantedNumbers.join(', ')}.
     FAVOR: ${luckyNumbers.join(', ')}.
     RETURN JSON ONLY.
@@ -346,7 +349,10 @@ export async function getAiSuggestions(
   const baseConfig = GAME_CONFIGS[game as LotteryGameType] || GAME_CONFIGS[LotteryGameType.CUSTOM];
   const config = { ...baseConfig, ...customConfig };
 
-  const prompt = `Suggest 5 numbers for ${game} (1-${config.mainRange}). Exclude: ${unwantedNumbers.join(', ')}. JSON Array.`;
+  const prompt = `Suggest 5 numbers for ${game} (1-${config.mainRange}). 
+  Theories: ${enabledTheories.join(', ')}. 
+  Angel Hint: ${angelInput}.
+  Exclude: ${unwantedNumbers.join(', ')}. JSON Array.`;
 
   try {
     const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
