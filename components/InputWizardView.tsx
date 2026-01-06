@@ -4,7 +4,7 @@ import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
 import { 
   RefreshCw, ArrowLeft, 
-  Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle
+  Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle, FileText
 } from 'lucide-react';
 
 interface InputWizardViewProps {
@@ -55,6 +55,19 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
     }
   };
 
+  const handleLoadDemoData = () => {
+      // Mock data for user fallback
+      const mock = `
+Date: 2023-11-20, Main: 5 12 23 34 45, Bonus: 8
+Date: 2023-11-13, Main: 2 18 29 31 40, Bonus: 11
+Date: 2023-11-06, Main: 7 14 25 33 48, Bonus: 4
+Date: 2023-10-30, Main: 1 9 20 28 35, Bonus: 7
+Date: 2023-10-23, Main: 10 15 22 38 42, Bonus: 1
+`.trim();
+      setLocalData(mock);
+      setError(null);
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-500">
       <div className="glass-panel rounded-3xl p-8 border-white/5 min-h-[80vh] flex flex-col relative overflow-hidden group/settings">
@@ -99,6 +112,11 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
                     {error.includes("Key") && (
                         <button onClick={() => setShowDevSettings(true)} className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 rounded text-red-300 w-full">
                            Update API Key
+                        </button>
+                    )}
+                    {error.includes("Quota") && (
+                        <button onClick={handleLoadDemoData} className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded text-white w-full flex items-center justify-center gap-2">
+                           <FileText className="w-3 h-3"/> Use Demo Data
                         </button>
                     )}
                  </div>

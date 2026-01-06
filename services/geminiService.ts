@@ -201,10 +201,10 @@ export async function fetchLatestDraws(game: string): Promise<{ data: string; so
   const prompt = `Find the 10 most recent official draw results for "${searchTerm}". Output each draw on a new line: "Date: Main Numbers (Bonus: Numbers)". Do not include extra text. Use Google Search for accuracy.`;
 
   try {
-    // CHANGE: Use Flash model for search. It uses less quota and is sufficient for extraction.
+    // CHANGE: Use Flash model for search (primary) and fallback to Gemini 2.5 Flash if 3.0 is busy.
     const response = await executeGenAIRequest('gemini-3-flash-preview', prompt, {
       tools: [{ googleSearch: {} }],
-    });
+    }, 'gemini-flash-latest');
 
     if (!response.text) {
         throw new Error("AI returned empty data.");
