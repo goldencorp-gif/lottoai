@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, PlayCircle, BookOpen, Globe, Download, Share2, Coffee, Bookmark } from 'lucide-react';
+import { Brain, PlayCircle, BookOpen, Globe, Download, Share2, Coffee, Bookmark, Settings } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DONATION_LINK } from '../constants';
 
@@ -8,9 +8,10 @@ type ViewType = 'predictor' | 'simulator' | 'guide' | 'vault';
 interface NavigationProps {
   currentView: ViewType;
   setView: (view: any) => void;
+  onOpenSettings: () => void;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
+const Navigation: React.FC<NavigationProps> = ({ currentView, setView, onOpenSettings }) => {
   const { language, setLanguage, t } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -120,6 +121,14 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView }) => {
 
         <button onClick={handleShare} className="p-2 bg-gray-900 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-colors">
           <Share2 className="w-4 h-4" />
+        </button>
+
+        <button 
+          onClick={onOpenSettings}
+          className="p-2 bg-gray-900 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-colors group"
+          title="API Settings"
+        >
+          <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
         </button>
 
         <div className="relative group z-50">

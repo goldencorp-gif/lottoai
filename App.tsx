@@ -11,12 +11,14 @@ import LuckTesterView from './components/LuckTesterView';
 import MoonBlocksView from './components/MoonBlocksView';
 import VaultView from './components/VaultView';
 import LegalModal from './components/LegalModal';
+import SettingsModal from './components/SettingsModal';
 
 type ViewType = 'predictor' | 'simulator' | 'guide' | 'wizard' | 'luck-tester' | 'moon-blocks' | 'vault';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('predictor');
   const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Initialize from LocalStorage
   const [selectedGame, setSelectedGame] = useState<LotteryGameType>(() => {
@@ -90,6 +92,7 @@ const App: React.FC = () => {
         <Navigation 
           currentView={currentView} 
           setView={setCurrentView} 
+          onOpenSettings={() => setShowSettings(true)}
         />
       )}
 
@@ -163,6 +166,10 @@ const App: React.FC = () => {
         />
       )}
 
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+
       {legalView && (
         <LegalModal 
           title={legalView === 'privacy' ? "Privacy Policy" : "Terms of Service"}
@@ -172,6 +179,7 @@ const App: React.FC = () => {
               <>
                 <p><strong>1. Data Storage</strong><br/>All prediction data, user inputs, and history are stored locally on your device via browser LocalStorage.</p>
                 <p><strong>2. AI Processing</strong><br/>The application utilizes Google Gemini AI APIs. Data sent to the AI API is processed subject to Google's data processing terms.</p>
+                <p><strong>3. API Keys</strong><br/>If you provide your own API Key, it is stored locally on your device and sent directly to Google. We do not store or track your API key.</p>
               </>
             ) : (
               <>
