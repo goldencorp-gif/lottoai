@@ -16,8 +16,7 @@ export const settings = {
     enabled: true,
     // 2. DONATION LINK (RECOMMENDED: KO-FI)
     // Ko-fi allows you to accept money to your personal PayPal with 0% fees.
-    // Sign up at ko-fi.com and paste your profile link here.
-    url: "https://ko-fi.com/YOUR_USERNAME_HERE"
+    url: "https://ko-fi.com/lottoai"
   },
   adsense: {
     publisherId: "ca-pub-XXXXXXXXXXXXXXXX",
@@ -32,29 +31,28 @@ export const settings = {
   customAds: {
     // 3. BANNER IMAGE LINKS (IMAGES ONLY)
     // Change the 'url' below to control where the BANNER IMAGES take the user.
-    // This does NOT affect the "Play Now" buttons.
     sidebar: {
       enabled: true,
       image: "/ad-square.png",
-      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
+      url: "https://www.1stmg.com.au", 
       alt: "Check out our partner"
     },
     mainResult: {
       enabled: true,
       image: "/ad-banner.png",
-      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
+      url: "https://www.8milesestate.com.au",
       alt: "Play Now"
     },
     footer: {
       enabled: true,
       image: "/ad-banner.png",
-      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
+      url: "https://www.8milesestate.com.au", 
       alt: "Support"
     },
     vault: {
       enabled: true,
       image: "/ad-square.png",
-      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
+      url: "https://www.1stmg.com.au",
       alt: "Premium"
     }
   }
