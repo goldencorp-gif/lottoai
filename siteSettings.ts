@@ -6,16 +6,18 @@ export const settings = {
     companyName: "AI Power Draw"
   },
   affiliates: {
+    // 1. "PLAY NOW" BUTTON LINKS
+    // This is the base URL for the "Play Now" buttons generated in the app logic.
     partnerBaseUrl: "https://www.lotteryoffice.com.au",
-    // INSTRUCTION: When you get your Affiliate ID in 2 days, paste the parameter here.
-    // Example format: "?aff_id=12345" or "?marketing_source=YOUR_ID"
-    // Leave empty "" until then.
     trackingParam: "",
     useAffiliateLinks: true
   },
   donation: {
     enabled: true,
-    url: "https://ko-fi.com"
+    // 2. DONATION LINK (RECOMMENDED: KO-FI)
+    // Ko-fi allows you to accept money to your personal PayPal with 0% fees.
+    // Sign up at ko-fi.com and paste your profile link here.
+    url: "https://ko-fi.com/YOUR_USERNAME_HERE"
   },
   adsense: {
     publisherId: "ca-pub-XXXXXXXXXXXXXXXX",
@@ -28,28 +30,31 @@ export const settings = {
     }
   },
   customAds: {
+    // 3. BANNER IMAGE LINKS (IMAGES ONLY)
+    // Change the 'url' below to control where the BANNER IMAGES take the user.
+    // This does NOT affect the "Play Now" buttons.
     sidebar: {
       enabled: true,
       image: "/ad-square.png",
-      url: "https://your-website.com",
+      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
       alt: "Check out our partner"
     },
     mainResult: {
       enabled: true,
       image: "/ad-banner.png",
-      url: "https://your-website.com",
+      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
       alt: "Play Now"
     },
     footer: {
       enabled: true,
       image: "/ad-banner.png",
-      url: "https://your-website.com",
+      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
       alt: "Support"
     },
     vault: {
       enabled: true,
       image: "/ad-square.png",
-      url: "https://your-website.com",
+      url: "https://www.lotteryoffice.com.au", // <--- CHANGE THIS TO YOUR BANNER LINK
       alt: "Premium"
     }
   }

@@ -11,7 +11,7 @@
   },
   "donation": {
     "enabled": true,
-    "url": "https://ko-fi.com"
+    "url": "https://ko-fi.com/YOUR_USERNAME_HERE"
   },
   "adsense": {
     "publisherId": "ca-pub-XXXXXXXXXXXXXXXX",
@@ -27,25 +27,25 @@
     "sidebar": {
       "enabled": true,
       "image": "/ad-square.png",
-      "url": "https://your-website.com",
+      "url": "https://www.lotteryoffice.com.au",
       "alt": "Check out our partner"
     },
     "mainResult": {
       "enabled": true,
       "image": "/ad-banner.png",
-      "url": "https://your-website.com",
+      "url": "https://www.lotteryoffice.com.au",
       "alt": "Play Now"
     },
     "footer": {
       "enabled": true,
       "image": "/ad-banner.png",
-      "url": "https://your-website.com",
+      "url": "https://www.lotteryoffice.com.au",
       "alt": "Support"
     },
     "vault": {
       "enabled": true,
       "image": "/ad-square.png",
-      "url": "https://your-website.com",
+      "url": "https://www.lotteryoffice.com.au",
       "alt": "Premium"
     }
   }
