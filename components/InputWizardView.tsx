@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
+import { useLanguage } from '../contexts/LanguageContext';
 import { 
   RefreshCw, ArrowLeft, 
   Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle, Sparkles
@@ -15,10 +16,11 @@ interface InputWizardViewProps {
 }
 
 const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, onSave, onCancel }) => {
+  const { t } = useLanguage();
   const [localData, setLocalData] = useState<string>(currentData);
   const [sources, setSources] = useState<{ title: string, uri: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success' | 'info', text: string} | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success' | 'info', textKey: string} | null>(null);
 
   // Settings State
   const [showDevSettings, setShowDevSettings] = useState(false);
@@ -47,18 +49,18 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
       if (result.isSimulated) {
         setStatusMessage({
             type: 'info', 
-            text: 'Live connection unavailable. Generated simulation data based on historical parameters.'
+            textKey: 'wlz.msg.info'
         });
       } else {
          setStatusMessage({
             type: 'success',
-            text: 'Successfully synced latest official results.'
+            textKey: 'wlz.msg.success'
          });
       }
     } catch (e: any) {
         setStatusMessage({
             type: 'error',
-            text: "Connection failed. Please enter data manually."
+            textKey: 'wlz.msg.error'
         });
     } finally {
       setIsLoading(false);
@@ -74,7 +76,7 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
         <button 
             onClick={() => setShowDevSettings(true)} 
             className={`absolute top-6 right-6 p-2 rounded-lg transition-all z-20 ${manualApiKey ? 'bg-green-500/10 text-green-400' : 'bg-gray-800 text-gray-500 hover:text-white'}`}
-            title="API Settings"
+            title={t('settings.title')}
         >
             <Settings className="w-4 h-4" />
         </button>
@@ -85,8 +87,8 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
               <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-white" />
             </button>
             <div>
-              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Data Intelligence</h2>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Managing results for {game}</p>
+              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{t('wlz.title')}</h2>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{t('wlz.desc')} {game}</p>
             </div>
           </div>
         </div>
@@ -94,13 +96,13 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
           <div className="space-y-6">
             <div className="p-6 bg-gray-900/40 rounded-3xl border border-gray-800">
-              <h3 className="text-sm font-black text-white uppercase mb-4">Auto-Sync</h3>
+              <h3 className="text-sm font-black text-white uppercase mb-4">{t('wlz.autosync')}</h3>
               <p className="text-[10px] text-gray-500 mb-6 leading-relaxed">
-                Attempt to sync official results. If offline, the system will generate a valid historical simulation.
+                {t('wlz.autosyncDesc')}
               </p>
               <button onClick={handleFetch} disabled={isLoading} className={`w-full py-4 rounded-xl font-bold uppercase text-xs flex items-center justify-center gap-2 transition-all ${isLoading ? 'bg-gray-800 text-gray-500' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-xl'}`}>
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                {isLoading ? 'Syncing...' : 'Sync Results'}
+                {isLoading ? t('wlz.syncing') : t('wlz.sync')}
               </button>
               
               {statusMessage && (
@@ -109,7 +111,7 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
                         {statusMessage.type === 'info' ? <Sparkles className="w-4 h-4"/> : <AlertCircle className="w-4 h-4"/>}
                     </div>
                     <p className="text-[10px] leading-relaxed font-medium">
-                        {statusMessage.text}
+                        {t(statusMessage.textKey)}
                     </p>
                  </div>
               )}
@@ -118,7 +120,7 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
             {sources.length > 0 && (
               <div className="p-6 bg-indigo-900/10 rounded-3xl border border-indigo-500/20">
                 <h3 className="text-xs font-black text-indigo-400 uppercase mb-3 flex items-center gap-2">
-                  <LinkIcon className="w-3 h-3" /> Grounding Sources
+                  <LinkIcon className="w-3 h-3" /> {t('wlz.sources')}
                 </h3>
                 <div className="space-y-2">
                   {sources.map((s, i) => (
@@ -134,23 +136,23 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
           <div className="lg:col-span-2 flex flex-col relative">
              <div className="absolute top-2 right-2 z-10">
                  <button onClick={() => setLocalData('')} className="px-3 py-1.5 bg-gray-900/80 hover:bg-red-900/50 text-gray-400 hover:text-red-400 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 transition-colors">
-                    <Trash2 className="w-3 h-3" /> Clear
+                    <Trash2 className="w-3 h-3" /> {t('wlz.clear')}
                 </button>
              </div>
              <div className="bg-black/40 border border-gray-800 rounded-3xl p-1 flex-grow">
-                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder="Paste results or Sync..." className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
+                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder={t('wlz.placeholder')} className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
              </div>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-800 flex justify-end">
           <button onClick={() => onSave(localData)} className="py-4 px-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-lg uppercase shadow-xl">
-            <Save className="w-5 h-5 mr-2 inline" /> Save & Analyze
+            <Save className="w-5 h-5 mr-2 inline" /> {t('wlz.save')}
           </button>
         </div>
       </div>
 
-      {/* Dev Settings Modal */}
+      {/* Internal Settings Modal for Wizard */}
       {showDevSettings && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
              <div className="bg-gray-900 border border-white/10 rounded-3xl w-full max-w-md p-6 relative shadow-2xl">
@@ -160,13 +162,13 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
                      <div className="p-2 bg-indigo-600 rounded-lg text-white">
                          <Settings className="w-5 h-5" />
                      </div>
-                     <h3 className="text-lg font-black text-white uppercase tracking-tight">API Configuration</h3>
+                     <h3 className="text-lg font-black text-white uppercase tracking-tight">{t('settings.title')}</h3>
                  </div>
 
                  <div className="mb-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300 flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <div>
-                      The 'Sync Results' feature requires a valid Gemini API Key with Search Grounding access.
+                      {t('settings.wizardHint')}
                     </div>
                  </div>
 
@@ -175,11 +177,11 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
                         type="password" 
                         value={manualApiKey}
                         onChange={(e) => setManualApiKey(e.target.value)}
-                        placeholder="Paste Gemini API Key"
+                        placeholder={t('settings.label')}
                         className="w-full bg-black/40 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-indigo-500"
                      />
                      <button onClick={handleSaveManualKey} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-2 hover:bg-indigo-500 transition-colors shadow-lg">
-                         <Save className="w-4 h-4" /> Save Configuration
+                         <Save className="w-4 h-4" /> {t('settings.save')}
                      </button>
                  </div>
              </div>

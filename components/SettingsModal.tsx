@@ -1,11 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, Key, Trash2, ExternalLink, ShieldCheck } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface SettingsModalProps {
   onClose: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
+  const { t } = useLanguage();
   const [apiKey, setApiKey] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -52,8 +55,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 <Key className="w-6 h-6" />
             </div>
             <div>
-                <h3 className="text-xl font-black text-white uppercase tracking-tight">API Configuration</h3>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Bring Your Own Key</p>
+                <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('settings.title')}</h3>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{t('settings.subtitle')}</p>
             </div>
         </div>
 
@@ -63,19 +66,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
                     <div className="space-y-2">
                         <p className="text-xs text-indigo-200 leading-relaxed font-medium">
-                            By providing your own Google Gemini API Key, you unlock:
+                            {t('settings.desc')}
                         </p>
                         <ul className="text-[10px] text-gray-400 space-y-1 list-disc list-inside">
-                            <li>Higher rate limits (Less "Busy" errors)</li>
-                            <li>Real-time Web Search capabilities</li>
-                            <li>Faster generation speeds</li>
+                            <li>{t('settings.li1')}</li>
+                            <li>{t('settings.li2')}</li>
+                            <li>{t('settings.li3')}</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
             <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Google Gemini API Key</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">{t('settings.label')}</label>
                 <div className="relative">
                     <input 
                         type="password" 
@@ -92,11 +95,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                         rel="noopener noreferrer"
                         className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                     >
-                        Get a Key <ExternalLink className="w-3 h-3" />
+                        {t('settings.getKey')} <ExternalLink className="w-3 h-3" />
                     </a>
                     {apiKey && (
                         <button onClick={handleClear} className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1">
-                            <Trash2 className="w-3 h-3" /> Clear Key
+                            <Trash2 className="w-3 h-3" /> {t('settings.clear')}
                         </button>
                     )}
                 </div>
@@ -106,11 +109,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 onClick={handleSave} 
                 className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${saved ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'}`}
             >
-                {saved ? 'Saved Successfully' : 'Save Configuration'}
+                {saved ? t('settings.saved') : t('settings.save')}
             </button>
             
             <p className="text-[9px] text-gray-600 text-center max-w-xs mx-auto">
-                Your key is stored locally in your browser. It is never sent to our servers, only directly to Google's API.
+                {t('settings.note')}
             </p>
         </div>
       </div>
