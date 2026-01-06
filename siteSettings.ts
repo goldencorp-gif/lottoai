@@ -2,7 +2,7 @@
 export const settings = {
   general: {
     appName: "Lotto AI",
-    version: "1.4.0 (Global)",
+    version: "1.0.0 (Stable)",
     companyName: "AI Power Draw"
   },
   affiliates: {
