@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
-import { Brain, PlayCircle, BookOpen, Globe, Share2, Coffee, Bookmark, Settings, Crown, Heart } from 'lucide-react';
+import { Brain, PlayCircle, BookOpen, Globe, Share2, Bookmark, Settings, Crown, Heart } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { DONATION_LINK } from '../constants';
 import { settings } from '../siteSettings';
 
 type ViewType = 'predictor' | 'simulator' | 'guide' | 'vault';
