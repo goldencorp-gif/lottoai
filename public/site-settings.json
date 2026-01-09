@@ -8,7 +8,7 @@
   "affiliates": {
     "partnerBaseUrl": "https://www.lotteryoffice.com.au",
     "trackingParam": "",
-    "useAffiliateLinks": true
+    "useAffiliateLinks": false
   },
   "donation": {
     "enabled": true,

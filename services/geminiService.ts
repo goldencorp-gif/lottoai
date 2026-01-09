@@ -146,34 +146,6 @@ function generateSmartSimulation(game: string): string {
  */
 
 async function executeGenAIRequest(model: string, contents: any, config?: any, fallbackModel?: string) {
-  const localStoredKey = (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key'));
-  
-  if (localStoredKey) {
-    try {
-      const ai = new GoogleGenAI({ apiKey: localStoredKey });
-      try {
-        const response: GenerateContentResponse = await ai.models.generateContent({ model, contents, config });
-        return {
-            text: response.text || "",
-            candidates: response.candidates,
-            groundingMetadata: response.candidates?.[0]?.groundingMetadata
-        };
-      } catch (innerErr: any) {
-        if (isQuotaError(innerErr) && fallbackModel) {
-            const response: GenerateContentResponse = await ai.models.generateContent({ model: fallbackModel, contents, config });
-            return {
-                text: response.text || "",
-                candidates: response.candidates,
-                groundingMetadata: response.candidates?.[0]?.groundingMetadata
-            };
-        }
-        throw innerErr;
-      }
-    } catch (err: any) {
-      throw new Error("MANUAL_KEY_FAILED");
-    }
-  }
-
   // @ts-ignore
   const envKey = process.env.API_KEY;
   if (envKey && envKey.length > 0 && !envKey.includes("undefined")) {

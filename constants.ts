@@ -153,7 +153,8 @@ const getLink = (path: string) => {
 };
 
 // NOTE: The Lottery Office sells "International Matching" tickets (e.g. USA Power Lotto).
-export const BUY_LINKS: Partial<Record<LotteryGameType, string>> = {
+// We check settings.affiliates.useAffiliateLinks to see if these should be enabled.
+export const BUY_LINKS: Partial<Record<LotteryGameType, string>> = settings.affiliates.useAffiliateLinks ? {
   // USA
   [LotteryGameType.US_POWERBALL]: getLink('/usa-power-lotto'),
   [LotteryGameType.US_MEGA_MILLIONS]: getLink('/usa-mega-lotto'),
@@ -169,7 +170,7 @@ export const BUY_LINKS: Partial<Record<LotteryGameType, string>> = {
   // Note: Standard Australian games are usually bought via The Lott or similar, 
   // not "The Lottery Office" which specializes in international.
   // We leave them undefined here unless you have specific links.
-};
+} : {};
 
 export const LOTTERY_THEORIES = [
   {

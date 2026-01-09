@@ -10,7 +10,8 @@ export const settings = {
     // This is the base URL for the "Play Now" buttons generated in the app logic.
     partnerBaseUrl: "https://www.lotteryoffice.com.au",
     trackingParam: "",
-    useAffiliateLinks: true
+    // PAUSED: Set to false until approved by The Lottery Office
+    useAffiliateLinks: false
   },
   donation: {
     // Disabled because Ko-fi/PayPal block gambling apps.
