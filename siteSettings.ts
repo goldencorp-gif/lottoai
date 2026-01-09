@@ -27,6 +27,10 @@ export const settings = {
     sol: ""
   },
   adsense: {
+    // YOUR ADSENSE ID: This connects the app to your Google Account.
+    // 1. Go to adsense.google.com -> Account -> Settings -> Account Information
+    // 2. Copy your "Publisher ID" and paste it below.
+    // 3. Google will pay the bank account linked to THAT AdSense account.
     publisherId: "ca-pub-8761648075829250",
     showLabel: true,
     slots: {
