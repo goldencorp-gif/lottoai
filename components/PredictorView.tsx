@@ -176,17 +176,7 @@ const PredictorView: React.FC<PredictorViewProps> = ({
         
         <div className="lg:col-span-4 space-y-6">
           {/* STEP 1: Market Selection */}
-          <section className="glass-panel rounded-3xl p-6 shadow-2xl border-white/5 relative group/settings">
-            
-            {/* Secret Dev Settings Button (Top Right) */}
-            <button 
-                onClick={() => setShowDevSettings(true)} 
-                className={`absolute top-6 right-6 p-1.5 rounded-lg transition-all opacity-0 group-hover/settings:opacity-100 ${manualApiKey ? 'bg-green-500/10 text-green-400' : 'text-gray-600 hover:text-gray-400'}`}
-                title="Developer Settings"
-            >
-                <Settings className="w-3 h-3" />
-            </button>
-
+          <section className="glass-panel rounded-3xl p-6 shadow-2xl border-white/5 relative">
             <h2 className="text-lg font-black flex items-center gap-2 text-indigo-400 mb-4">
               <Globe className="w-5 h-5" /> {t('step1.title')}
             </h2>
