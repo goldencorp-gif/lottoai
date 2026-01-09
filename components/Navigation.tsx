@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Brain, PlayCircle, BookOpen, Globe, Share2, Coffee, Bookmark, Settings, Crown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DONATION_LINK } from '../constants';

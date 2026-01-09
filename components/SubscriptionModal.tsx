@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Crown, Zap, Shield, Star, Copy, Check, Bitcoin, Wallet } from 'lucide-react';
+import { X, Crown, Zap, Shield, Copy, Check, Bitcoin, Wallet } from 'lucide-react';
 import { settings } from '../siteSettings';
 
 interface SubscriptionModalProps {
