@@ -13,6 +13,7 @@ export const settings = {
     useAffiliateLinks: true
   },
   donation: {
+    // Disabled because Ko-fi/PayPal block gambling apps.
     enabled: false,
     url: "https://ko-fi.com/lottoai"
   },

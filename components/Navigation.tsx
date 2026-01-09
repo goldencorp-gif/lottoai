@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Brain, PlayCircle, BookOpen, Globe, Share2, Coffee, Bookmark, Settings, Crown } from 'lucide-react';
+import { Brain, PlayCircle, BookOpen, Globe, Share2, Coffee, Bookmark, Settings, Crown, Heart } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DONATION_LINK } from '../constants';
+import { settings } from '../siteSettings';
 
 type ViewType = 'predictor' | 'simulator' | 'guide' | 'vault';
 
@@ -16,6 +17,9 @@ interface NavigationProps {
 const Navigation: React.FC<NavigationProps> = ({ currentView, setView, onOpenSettings, onOpenSubscribe }) => {
   const { language, setLanguage, t } = useLanguage();
   const [logoError, setLogoError] = useState(false);
+
+  // Check if we have any direct payment method enabled
+  const hasDirectPayment = settings.crypto.enabled || settings.donation.enabled;
 
   const handleShare = () => {
     if (navigator.share) {
@@ -82,21 +86,27 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, onOpenSet
       </div>
 
       <div className="flex items-center gap-2">
-        <button 
-          onClick={() => window.open(DONATION_LINK, '_blank')}
-          className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 rounded-xl border border-yellow-500/20 text-xs font-bold uppercase transition-colors"
-        >
-          <Coffee className="w-4 h-4" />
-          <span className="hidden sm:inline">{t('nav.support')}</span>
-        </button>
-
-        {/* Subscription / Premium Button (Replaces Download) */}
+        {/* Support / Premium Button */}
+        {/* We use the settings to determine appearance. If no payment methods, it acts as a 'Support' button for affiliates. */}
         <button 
           onClick={onOpenSubscribe}
-          className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-yellow-600/20 to-orange-600/20 hover:from-yellow-600/30 hover:to-orange-600/30 text-yellow-500 border border-yellow-500/30 rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-yellow-900/10 hover:shadow-yellow-900/20 group"
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase transition-all shadow-lg group
+            ${hasDirectPayment 
+              ? 'bg-gradient-to-r from-yellow-600/20 to-orange-600/20 hover:from-yellow-600/30 hover:to-orange-600/30 text-yellow-500 border border-yellow-500/30 shadow-yellow-900/10' 
+              : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'}
+          `}
         >
-          <Crown className="w-4 h-4 group-hover:scale-110 transition-transform" />
-          <span className="hidden sm:inline">Premium</span>
+          {hasDirectPayment ? (
+            <>
+              <Crown className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Premium</span>
+            </>
+          ) : (
+            <>
+              <Heart className="w-4 h-4 text-red-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Support</span>
+            </>
+          )}
         </button>
 
         <button onClick={handleShare} className="p-2 bg-gray-900 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-colors">
