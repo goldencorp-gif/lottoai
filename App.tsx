@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { LotteryGameType, GameConfig, SavedPrediction } from './types';
-import { GAME_CONFIGS } from './constants';
+import { GAME_CONFIGS, BUY_LINKS } from './constants';
 import CommercialNotice from './components/CommercialNotice';
 import Navigation from './components/Navigation';
 import PredictorView from './components/PredictorView';
@@ -12,6 +13,7 @@ import MoonBlocksView from './components/MoonBlocksView';
 import VaultView from './components/VaultView';
 import LegalModal from './components/LegalModal';
 import SettingsModal from './components/SettingsModal';
+import { ExternalLink, Ticket } from 'lucide-react';
 
 type ViewType = 'predictor' | 'simulator' | 'guide' | 'wizard' | 'luck-tester' | 'moon-blocks' | 'vault';
 
@@ -189,6 +191,31 @@ const App: React.FC = () => {
             )
           }
         />
+      )}
+
+      {/* Sticky Affiliate Footer for High Conversion */}
+      {!isFullScreenView && BUY_LINKS[selectedGame] && (
+         <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-indigo-500/30 p-4 z-[90] pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center animate-pulse">
+                      <Ticket className="w-5 h-5 text-white" />
+                   </div>
+                   <div className="hidden sm:block">
+                      <div className="text-xs text-gray-400 font-bold uppercase">Ready to Win?</div>
+                      <div className="text-sm font-black text-white uppercase tracking-tight">Play {selectedGame} Online</div>
+                   </div>
+                </div>
+                <a 
+                   href={BUY_LINKS[selectedGame]} 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg hover:scale-105 transition-transform"
+                >
+                   Bet Now <ExternalLink className="w-3 h-3" />
+                </a>
+             </div>
+         </div>
       )}
     </div>
   );

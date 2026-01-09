@@ -19,7 +19,7 @@ export const settings = {
     url: "https://ko-fi.com/lottoai"
   },
   adsense: {
-    publisherId: "ca-pub-XXXXXXXXXXXXXXXX",
+    publisherId: "ca-pub-8761648075829250",
     showLabel: true,
     slots: {
       sidebar: "1234567890",

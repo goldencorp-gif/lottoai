@@ -361,6 +361,13 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ selectedGame, historyText
                       </div>
                   </div>
               </div>
+
+              {/* AD UNIT: MOBILE SIMULATOR */}
+              {/* Visible only on mobile/tablet (hidden lg) where the sidebar ad is hidden */}
+              <div className="lg:hidden w-full px-4 mb-8">
+                 <AdUnit slot="SIDEBAR" format="horizontal" />
+              </div>
+
             </div>
 
             <div className="flex justify-center -mt-8 relative z-30">

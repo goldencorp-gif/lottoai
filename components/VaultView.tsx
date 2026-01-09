@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { Bookmark, Trash2, Calendar, Hash, Image as ImageIcon, Zap, ExternalLink, Download, Upload, Info, X } from 'lucide-react';
 import { SavedPrediction, LotteryGameType } from '../types';
@@ -185,16 +186,16 @@ const VaultView: React.FC<VaultViewProps> = ({ entries, onDelete, onImport }) =>
                   ))}
                 </div>
 
-                {/* Affiliate Link in Vault */}
+                {/* Affiliate Link in Vault - Enhanced High Conversion */}
                 {BUY_LINKS[entry.game as LotteryGameType] && (
                   <div className="mt-4 pt-4 border-t border-gray-800">
                     <a 
                       href={BUY_LINKS[entry.game as LotteryGameType]} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="w-full py-2 bg-green-600/10 hover:bg-green-600/20 border border-green-500/20 text-green-400 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 border border-green-500/20 text-white rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/20"
                     >
-                      {t('btn.playNow')} <ExternalLink className="w-3 h-3" />
+                      {t('btn.playNow')} <ExternalLink className="w-4 h-4" />
                     </a>
                   </div>
                 )}
