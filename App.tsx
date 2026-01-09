@@ -13,6 +13,7 @@ import MoonBlocksView from './components/MoonBlocksView';
 import VaultView from './components/VaultView';
 import LegalModal from './components/LegalModal';
 import SettingsModal from './components/SettingsModal';
+import SubscriptionModal from './components/SubscriptionModal';
 import { ExternalLink, Ticket } from 'lucide-react';
 
 type ViewType = 'predictor' | 'simulator' | 'guide' | 'wizard' | 'luck-tester' | 'moon-blocks' | 'vault';
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('predictor');
   const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
 
   // Initialize from LocalStorage
   const [selectedGame, setSelectedGame] = useState<LotteryGameType>(() => {
@@ -95,6 +97,7 @@ const App: React.FC = () => {
           currentView={currentView} 
           setView={setCurrentView} 
           onOpenSettings={() => setShowSettings(true)}
+          onOpenSubscribe={() => setShowSubscription(true)}
         />
       )}
 
@@ -170,6 +173,10 @@ const App: React.FC = () => {
 
       {showSettings && (
         <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+      
+      {showSubscription && (
+        <SubscriptionModal onClose={() => setShowSubscription(false)} />
       )}
 
       {legalView && (

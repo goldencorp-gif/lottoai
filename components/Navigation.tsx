@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState } from 'react';
-import { Brain, PlayCircle, BookOpen, Globe, Download, Share2, Coffee, Bookmark, Settings } from 'lucide-react';
+import { Brain, PlayCircle, BookOpen, Globe, Share2, Coffee, Bookmark, Settings, Crown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { DONATION_LINK } from '../constants';
 
@@ -9,32 +10,12 @@ interface NavigationProps {
   currentView: ViewType;
   setView: (view: any) => void;
   onOpenSettings: () => void;
+  onOpenSubscribe: () => void;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentView, setView, onOpenSettings }) => {
+const Navigation: React.FC<NavigationProps> = ({ currentView, setView, onOpenSettings, onOpenSubscribe }) => {
   const { language, setLanguage, t } = useLanguage();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
   const [logoError, setLogoError] = useState(false);
-
-  useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-    }
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setDeferredPrompt(null);
-  };
 
   const handleShare = () => {
     if (navigator.share) {
@@ -109,15 +90,14 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, onOpenSet
           <span className="hidden sm:inline">{t('nav.support')}</span>
         </button>
 
-        {deferredPrompt && !isInstalled && (
-          <button 
-            onClick={handleInstallClick}
-            className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/20 text-xs font-bold uppercase transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">App</span>
-          </button>
-        )}
+        {/* Subscription / Premium Button (Replaces Download) */}
+        <button 
+          onClick={onOpenSubscribe}
+          className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-yellow-600/20 to-orange-600/20 hover:from-yellow-600/30 hover:to-orange-600/30 text-yellow-500 border border-yellow-500/30 rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-yellow-900/10 hover:shadow-yellow-900/20 group"
+        >
+          <Crown className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          <span className="hidden sm:inline">Premium</span>
+        </button>
 
         <button onClick={handleShare} className="p-2 bg-gray-900 rounded-xl border border-gray-800 text-gray-400 hover:text-white transition-colors">
           <Share2 className="w-4 h-4" />
