@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AD_PUBLISHER_ID, AD_SLOTS, CUSTOM_ADS, SHOW_AD_LABEL } from '../constants/ads';
 import { DONATION_LINK } from '../constants';
-import { Heart, Coffee } from 'lucide-react';
+import { Heart, Coffee, AlertCircle } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -31,12 +31,20 @@ const AdUnit: React.FC<AdUnitProps> = ({ slot, format = 'auto', className = '', 
   // Get the AdSense ID for this slot
   const adSenseSlotId = AD_SLOTS[slot];
   
+  // IF ID IS EMPTY, HIDE THE AD UNIT COMPLETELY
+  if (!isCustom && (!adSenseSlotId || adSenseSlotId === "")) {
+      return null;
+  }
+  
   // Check if AdSense is configured properly
   const isAdSenseConfigured = !AD_PUBLISHER_ID.includes('XXX');
 
+  // Check if the user is still using the default placeholder ID
+  const isPlaceholder = adSenseSlotId === '1234567890';
+
   useEffect(() => {
-    // If we are showing a custom ad or AdSense isn't configured, do NOT initialize
-    if (isCustom || !isAdSenseConfigured) return;
+    // If we are showing a custom ad, AdSense isn't configured, OR it's a placeholder ID, do NOT initialize
+    if (isCustom || !isAdSenseConfigured || isPlaceholder) return;
 
     // Prevent double initialization
     if (initialized.current) return;
@@ -51,11 +59,11 @@ const AdUnit: React.FC<AdUnitProps> = ({ slot, format = 'auto', className = '', 
     } catch (e) {
       console.error("AdSense push error:", e);
     }
-  }, [slot, isCustom, isAdSenseConfigured]);
+  }, [slot, isCustom, isAdSenseConfigured, isPlaceholder]);
 
   return (
     <div className={`my-4 flex flex-col items-center gap-1 ${className}`}>
-        {SHOW_AD_LABEL && label && isAdSenseConfigured && <span className="text-[9px] text-gray-700 uppercase tracking-widest font-bold">SPONSORED</span>}
+        {SHOW_AD_LABEL && label && isAdSenseConfigured && !isPlaceholder && <span className="text-[9px] text-gray-700 uppercase tracking-widest font-bold">SPONSORED</span>}
         
         <div className="w-full bg-gray-900/30 border border-white/5 rounded-xl overflow-hidden min-h-[100px] flex items-center justify-center relative">
             {isCustom ? (
@@ -72,6 +80,20 @@ const AdUnit: React.FC<AdUnitProps> = ({ slot, format = 'auto', className = '', 
                      className="max-w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.02]" 
                    />
                 </a>
+            ) : isPlaceholder ? (
+                 /* PLACEHOLDER WARNING - Helps user debug blank ads */
+                 <div className="flex flex-col items-center justify-center p-6 text-center border-2 border-dashed border-yellow-500/30 bg-yellow-500/5 w-full h-full min-h-[120px]">
+                    <div className="flex items-center gap-2 text-yellow-500 mb-2">
+                        <AlertCircle className="w-5 h-5" />
+                        <span className="text-xs font-bold uppercase">AdSense Setup Required</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 max-w-xs leading-relaxed">
+                       You have entered your Publisher ID, but you still need to create a specific <strong>Ad Unit</strong> for this slot ({slot}).
+                    </p>
+                    <div className="mt-2 bg-black/40 px-3 py-2 rounded border border-white/10 text-[10px] text-gray-300 font-mono">
+                       Paste the ID in siteSettings.ts
+                    </div>
+                 </div>
             ) : isAdSenseConfigured ? (
                 /* GOOGLE ADSENSE RENDER */
                 <ins className="adsbygoogle"
