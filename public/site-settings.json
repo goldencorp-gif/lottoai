@@ -26,25 +26,25 @@
   },
   "customAds": {
     "sidebar": {
-      "enabled": true,
+      "enabled": false,
       "image": "/ad-square.png",
       "url": "https://www.1stmg.com.au",
       "alt": "Check out our partner"
     },
     "mainResult": {
-      "enabled": true,
+      "enabled": false,
       "image": "/ad-banner.png",
       "url": "https://www.8milesestate.com.au",
       "alt": "Play Now"
     },
     "footer": {
-      "enabled": true,
+      "enabled": false,
       "image": "/ad-banner.png",
       "url": "https://www.8milesestate.com.au",
       "alt": "Support"
     },
     "vault": {
-      "enabled": true,
+      "enabled": false,
       "image": "/ad-square.png",
       "url": "https://www.1stmg.com.au",
       "alt": "Premium"

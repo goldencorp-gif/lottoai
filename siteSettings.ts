@@ -30,27 +30,28 @@ export const settings = {
   },
   customAds: {
     // 3. BANNER IMAGE LINKS (IMAGES ONLY)
-    // Change the 'url' below to control where the BANNER IMAGES take the user.
+    // To show Google Ads, 'enabled' must be set to FALSE.
+    // If 'enabled' is TRUE, these images will show instead of Google Ads.
     sidebar: {
-      enabled: true,
+      enabled: false,
       image: "/ad-square.png",
       url: "https://www.1stmg.com.au", 
       alt: "Check out our partner"
     },
     mainResult: {
-      enabled: true,
+      enabled: false,
       image: "/ad-banner.png",
       url: "https://www.8milesestate.com.au",
       alt: "Play Now"
     },
     footer: {
-      enabled: true,
+      enabled: false,
       image: "/ad-banner.png",
       url: "https://www.8milesestate.com.au", 
       alt: "Support"
     },
     vault: {
-      enabled: true,
+      enabled: false,
       image: "/ad-square.png",
       url: "https://www.1stmg.com.au",
       alt: "Premium"
