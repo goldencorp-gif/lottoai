@@ -2,7 +2,7 @@
 export const settings = {
   general: {
     appName: "Lotto AI",
-    version: "1.2 (Crypto)",
+    version: "1.2 (Affiliate)",
     companyName: "AI Power Draw"
   },
   affiliates: {
@@ -13,18 +13,17 @@ export const settings = {
     useAffiliateLinks: true
   },
   donation: {
-    enabled: true,
-    // We keep this for fallback, but the UI will prioritize Crypto
+    enabled: false,
     url: "https://ko-fi.com/lottoai"
   },
   crypto: {
-    enabled: true,
-    // REPLACE THESE WITH YOUR ACTUAL WALLET ADDRESSES
-    // If you leave them as is, people cannot pay you.
-    btc: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    eth: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-    usdt: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F", // Usually same as ETH (ERC20) or TRC20
-    sol: "HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH"
+    // Set this to TRUE only when you have your own wallet addresses.
+    enabled: false, 
+    // PASTE YOUR ADDRESSES HERE LATER
+    btc: "", 
+    eth: "",
+    usdt: "",
+    sol: ""
   },
   adsense: {
     publisherId: "ca-pub-8761648075829250",
@@ -38,7 +37,6 @@ export const settings = {
   },
   customAds: {
     // 3. BANNER IMAGE LINKS (IMAGES ONLY)
-    // To show Google Ads, 'enabled' must be set to FALSE.
     sidebar: {
       enabled: false,
       image: "/ad-square.png",
