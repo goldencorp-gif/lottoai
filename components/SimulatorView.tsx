@@ -81,6 +81,10 @@ const SimulatorView: React.FC<SimulatorViewProps> = ({ selectedGame, historyText
         // 1. Main Numbers (From AI)
         if (prediction.entries && prediction.entries.length > 0) {
             drawnMain = prediction.entries[0];
+            // SAFETY: Force slice to config.mainCount if not system entry (Simulator implies standard draw)
+            if (drawnMain.length > config.mainCount) {
+                drawnMain = drawnMain.slice(0, config.mainCount);
+            }
         } else {
             // Fallback Main
             const pool = Array.from({ length: config.mainRange }, (_, i) => i + 1).sort(() => Math.random() - 0.5);

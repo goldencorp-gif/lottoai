@@ -340,7 +340,28 @@ export async function analyzeAndPredict(
         },
         'gemini-3-flash-preview'
     );
-    return JSON.parse(response.text || "{}") as PredictionResult;
+    
+    const result = JSON.parse(response.text || "{}") as PredictionResult;
+
+    // --- SAFETY POST-PROCESSING ---
+    // Enforce correct number counts. The AI sometimes hallucinates extra numbers (e.g., Supps) into the main array.
+    if (result.entries && Array.isArray(result.entries)) {
+        const requiredCount = systemNumber || config.mainCount;
+        result.entries = result.entries.map(line => {
+            let cleanEntry = line.filter(n => typeof n === 'number');
+            // Remove duplicates
+            cleanEntry = Array.from(new Set(cleanEntry));
+            
+            // Truncate if the AI returned too many numbers
+            if (cleanEntry.length > requiredCount) {
+                cleanEntry = cleanEntry.slice(0, requiredCount);
+            }
+            return cleanEntry.sort((a,b) => a-b);
+        });
+    }
+    // ------------------------------
+
+    return result;
 
   } catch (error: any) {
     console.log("Switching to Local Intelligence Engine due to:", error.message);
