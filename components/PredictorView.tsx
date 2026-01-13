@@ -354,47 +354,70 @@ const PredictorView: React.FC<PredictorViewProps> = ({
             ) : (
               <div className="space-y-8 animate-in fade-in duration-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {results?.entries?.map((entry: number[], idx: number) => (
-                    <div key={idx} className="p-6 bg-white/5 rounded-3xl border border-white/5 flex flex-col gap-4 group hover:border-indigo-500/30 transition-all relative overflow-hidden">
-                      {/* Ticket Decor */}
-                      <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#111827]"></div>
-                      <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#111827]"></div>
+                  {results?.entries?.map((entry: number[], idx: number) => {
+                    // Only show the powerball if the game configuration actually requires picking one (separate barrel).
+                    // This prevents hallucinated bonus balls from appearing in games like Oz Lotto (7 main only).
+                    const shouldShowPowerball = config.bonusRange && config.bonusRange > 0;
+                    
+                    return (
+                      <div key={idx} className="p-6 bg-white/5 rounded-3xl border border-white/5 flex flex-col gap-4 group hover:border-indigo-500/30 transition-all relative overflow-hidden">
+                        {/* Ticket Decor */}
+                        <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#111827]"></div>
+                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#111827]"></div>
 
-                      <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                        <div className="flex items-center gap-2">
-                           <Ticket className="w-4 h-4 text-indigo-400" />
-                           <span className="text-[10px] font-black text-indigo-500 uppercase">Line {idx + 1}</span>
-                        </div>
-                        <div className="px-2 py-0.5 bg-indigo-500/10 rounded-md text-[8px] text-indigo-300 font-bold">STRENGTH: {results.strategicWeight}%</div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {entry.sort((a,b) => a-b).map((num, n) => <NumberBall key={n} number={num} />)}
-                        {results.powerballs && results.powerballs[idx] !== undefined && (
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
                           <div className="flex items-center gap-2">
-                            <div className="h-6 w-px bg-white/10" />
-                            <NumberBall number={results.powerballs[idx]} isPowerball />
+                             <Ticket className="w-4 h-4 text-indigo-400" />
+                             <span className="text-[10px] font-black text-indigo-500 uppercase">Line {idx + 1}</span>
                           </div>
+                          <div className="px-2 py-0.5 bg-indigo-500/10 rounded-md text-[8px] text-indigo-300 font-bold">STRENGTH: {results.strategicWeight}%</div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {entry.sort((a,b) => a-b).map((num, n) => <NumberBall key={n} number={num} />)}
+                          
+                          {shouldShowPowerball && results.powerballs && results.powerballs[idx] !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-px bg-white/10" />
+                              <NumberBall number={results.powerballs[idx]} isPowerball />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Direct Play Button Per Line - High Conversion */}
+                        {BUY_LINKS[selectedGame] && (
+                          <a 
+                            href={BUY_LINKS[selectedGame]} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="mt-2 w-full py-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg transition-all transform group-hover:scale-[1.02]"
+                          >
+                             Play This Line <ExternalLink className="w-3 h-3" />
+                          </a>
                         )}
                       </div>
-                      
-                      {/* Direct Play Button Per Line - High Conversion */}
-                      {BUY_LINKS[selectedGame] && (
-                        <a 
-                          href={BUY_LINKS[selectedGame]} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="mt-2 w-full py-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg transition-all transform group-hover:scale-[1.02]"
-                        >
-                           Play This Line <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* AD UNIT PLACEMENT: NATIVE SANDWICH */}
                 {/* Placed between results and analysis for natural eye flow without interruption */}
                 <AdUnit slot="MAIN_RESULT" format="horizontal" />
+                
+                {/* Win Coverage Rating Section */}
+                <div className="p-4 bg-indigo-900/20 rounded-2xl border border-indigo-500/20 mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
+                            <Target className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <div className="text-sm font-black text-white uppercase tracking-wider">Win Coverage Rating</div>
+                            <div className="text-[10px] text-gray-500 uppercase font-bold">Probabilistic Strength</div>
+                        </div>
+                    </div>
+                    <div className="text-2xl font-black text-indigo-400 tracking-tighter">
+                        {results?.strategicWeight}%
+                    </div>
+                </div>
 
                 <div className="p-8 bg-indigo-900/10 rounded-3xl border border-indigo-500/20 space-y-6">
                   <div className="flex items-center gap-3">
