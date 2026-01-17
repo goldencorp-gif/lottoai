@@ -28,6 +28,9 @@ const AdUnit: React.FC<AdUnitProps> = ({ slot, format = 'auto', className = '', 
   const customAd = CUSTOM_ADS[slot];
   const isCustom = customAd && customAd.enabled;
   
+  // Detect if the custom asset is a video based on file extension
+  const isVideo = isCustom && customAd.image && /\.(mp4|webm)$/i.test(customAd.image);
+  
   // Get the AdSense ID for this slot
   const adSenseSlotId = AD_SLOTS[slot];
   
@@ -72,13 +75,24 @@ const AdUnit: React.FC<AdUnitProps> = ({ slot, format = 'auto', className = '', 
                   href={customAd.url} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="w-full h-full flex items-center justify-center group relative"
+                  className="w-full h-full flex items-center justify-center group relative overflow-hidden"
                 >
-                   <img 
-                     src={customAd.image} 
-                     alt={customAd.alt} 
-                     className="max-w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.02]" 
-                   />
+                   {isVideo ? (
+                     <video 
+                       src={customAd.image} 
+                       autoPlay 
+                       loop 
+                       muted 
+                       playsInline 
+                       className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                     />
+                   ) : (
+                     <img 
+                       src={customAd.image} 
+                       alt={customAd.alt} 
+                       className="max-w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.02]" 
+                     />
+                   )}
                 </a>
             ) : isPlaceholder ? (
                  /* PLACEHOLDER WARNING - Helps user debug blank ads */

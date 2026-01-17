@@ -46,11 +46,12 @@ export const settings = {
     }
   },
   customAds: {
-    // 3. BANNER IMAGE LINKS (IMAGES ONLY)
-    // To display different ads simultaneously, ensure each slot points to a unique image file.
+    // 3. BANNER MEDIA LINKS (IMAGES OR VIDEO)
+    // To display different ads simultaneously, ensure each slot points to a unique file.
+    // Supported formats: .png, .jpg, .gif, .mp4, .webm
     sidebar: {
       enabled: true,
-      image: "/ad-sidebar.png",
+      image: "/ad-sidebar.png", // Or "/ad-sidebar.mp4"
       url: "https://www.1stmg.com.au", 
       alt: "Check out our partner"
     },
