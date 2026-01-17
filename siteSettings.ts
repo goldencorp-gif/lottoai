@@ -47,27 +47,28 @@ export const settings = {
   },
   customAds: {
     // 3. BANNER IMAGE LINKS (IMAGES ONLY)
+    // To display different ads simultaneously, ensure each slot points to a unique image file.
     sidebar: {
-      enabled: false,
-      image: "/ad-square.png",
+      enabled: true,
+      image: "/ad-sidebar.png",
       url: "https://www.1stmg.com.au", 
       alt: "Check out our partner"
     },
     mainResult: {
-      enabled: false,
-      image: "/ad-banner.png",
+      enabled: true,
+      image: "/ad-main.png",
       url: "https://www.8milesestate.com.au",
       alt: "Play Now"
     },
     footer: {
-      enabled: false,
-      image: "/ad-banner.png",
+      enabled: true,
+      image: "/ad-footer.png",
       url: "https://www.8milesestate.com.au", 
       alt: "Support"
     },
     vault: {
-      enabled: false,
-      image: "/ad-square.png",
+      enabled: true,
+      image: "/ad-vault.png",
       url: "https://www.1stmg.com.au",
       alt: "Premium"
     }
