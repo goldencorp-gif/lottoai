@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LotteryGameType } from '../types';
 import { fetchLatestDraws } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { 
   RefreshCw, ArrowLeft, 
-  Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle, Sparkles
+  Trash2, Save, Loader2, Link as LinkIcon, Settings, X, AlertCircle, Sparkles,
+  FileText, Type, AlignJustify
 } from 'lucide-react';
 
 interface InputWizardViewProps {
@@ -66,6 +67,15 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
       setIsLoading(false);
     }
   };
+
+  const stats = useMemo(() => {
+    const text = localData || '';
+    return {
+        lines: text ? text.split('\n').length : 0,
+        words: text.trim() ? text.trim().split(/\s+/).length : 0,
+        chars: text.length
+    };
+  }, [localData]);
 
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-500">
@@ -135,18 +145,40 @@ const InputWizardView: React.FC<InputWizardViewProps> = ({ game, currentData, on
 
           <div className="lg:col-span-2 flex flex-col relative">
              <div className="absolute top-2 right-2 z-10">
-                 <button onClick={() => setLocalData('')} className="px-3 py-1.5 bg-gray-900/80 hover:bg-red-900/50 text-gray-400 hover:text-red-400 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 transition-colors">
+                 <button onClick={() => setLocalData('')} className="px-3 py-1.5 bg-gray-900/80 hover:bg-red-900/50 text-gray-400 hover:text-red-400 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 transition-colors border border-white/5 backdrop-blur-sm shadow-lg">
                     <Trash2 className="w-3 h-3" /> {t('wlz.clear')}
                 </button>
              </div>
-             <div className="bg-black/40 border border-gray-800 rounded-3xl p-1 flex-grow">
-                 <textarea value={localData} onChange={(e) => setLocalData(e.target.value)} placeholder={t('wlz.placeholder')} className="w-full h-full bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800"/>
+             
+             <div className="bg-black/40 border border-gray-800 rounded-3xl flex flex-col flex-grow overflow-hidden relative shadow-inner">
+                 <textarea 
+                    value={localData} 
+                    onChange={(e) => setLocalData(e.target.value)} 
+                    placeholder={t('wlz.placeholder')} 
+                    className="w-full flex-grow bg-transparent p-6 text-sm font-mono text-gray-300 resize-none outline-none placeholder:text-gray-800 scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent"
+                 />
+                 
+                 {/* Statistical Footer */}
+                 <div className="px-6 py-3 bg-gray-900/50 border-t border-white/5 flex items-center justify-end gap-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest select-none backdrop-blur-sm">
+                     <div className="flex items-center gap-2" title="Lines">
+                        <AlignJustify className="w-3 h-3 text-indigo-500/50" />
+                        <span>{stats.lines} Lines</span>
+                     </div>
+                     <div className="flex items-center gap-2" title="Words">
+                        <FileText className="w-3 h-3 text-purple-500/50" />
+                        <span>{stats.words} Words</span>
+                     </div>
+                     <div className="flex items-center gap-2" title="Characters">
+                        <Type className="w-3 h-3 text-blue-500/50" />
+                        <span>{stats.chars} Chars</span>
+                     </div>
+                 </div>
              </div>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-800 flex justify-end">
-          <button onClick={() => onSave(localData)} className="py-4 px-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-lg uppercase shadow-xl">
+          <button onClick={() => onSave(localData)} className="py-4 px-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-lg uppercase shadow-xl hover:scale-105 transition-transform">
             <Save className="w-5 h-5 mr-2 inline" /> {t('wlz.save')}
           </button>
         </div>
