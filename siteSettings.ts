@@ -64,13 +64,13 @@ export const settings = {
     footer: {
       enabled: true,
       image: "/ad-footer.png",
-      url: "https://www.8milesestate.com.au", 
+      url: "https://www.mission12.com.au", 
       alt: "Support"
     },
     vault: {
       enabled: true,
       image: "/ad-vault.png",
-      url: "https://www.1stmg.com.au",
+      url: "https://www.8milesestate.com.au",
       alt: "Premium"
     }
   }
